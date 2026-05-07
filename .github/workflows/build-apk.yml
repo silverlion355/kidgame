@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
-  # Trigger on push to rebuild
 
 jobs:
   build:
@@ -22,11 +21,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Download Gradle 7.5
+        run: |
+          curl -L -o /tmp/gradle-7.5-bin.zip "https://services.gradle.org/distributions/gradle-7.5-bin.zip"
+          unzip -o /tmp/gradle-7.5-bin.zip -d /tmp/
+          echo "/tmp/gradle-7.5/bin" >> $GITHUB_PATH
+          gradle --version
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
