@@ -25,11 +25,10 @@ jobs:
         run: |
           curl -L -o /tmp/gradle-7.5-bin.zip "https://services.gradle.org/distributions/gradle-7.5-bin.zip"
           unzip -o /tmp/gradle-7.5-bin.zip -d /tmp/
-          echo "/tmp/gradle-7.5/bin" >> $GITHUB_PATH
-          gradle --version
+          /tmp/gradle-7.5/bin/gradle --version
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        run: /tmp/gradle-7.5/bin/gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
