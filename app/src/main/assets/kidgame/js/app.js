@@ -10,6 +10,13 @@ const App = (function () {
   var hearts = 3;
   var correctCount = 0;
   var startTime = 0;
+  var score = 0;
+  var streak = 0;
+  var maxStreak = 0;
+  var countdownTimer = null;
+  var countdownValue = 30;
+  var TOTAL_QUESTIONS = 5; // 保持不变
+  var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
   var isSpeechSupported = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
 var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
@@ -205,6 +212,14 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
   // ===== start level =====
   function startLevel(level) {
+    // 初始化分数、连击、倒计时
+    score = 0;
+    streak = 0;
+    maxStreak = 0;
+    countdownValue = 30;
+    updateScoreUI();
+    updateStreakUI();
+    updateCountdownUI();
     currentLevel = level;
     currentQIndex = 0;
     hearts = MAX_HEARTS;
@@ -222,6 +237,9 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       return;
     }
     showQuestion();
+    // 重置倒计时
+    countdownValue = 30;
+    updateCountdownUI();
   }
 
   function getSubjectName(sub) {
@@ -339,7 +357,10 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
     if (isAndroidTTSAvailable) {
       speakWithAndroidTTS(text, lang);
-    } else {
+    }
+
+    // 启动倒计时
+    startCountdown(); else {
       speakWithWebSpeech(text, lang);
     }
   }
@@ -478,6 +499,13 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     if (chosen === correct) {
       btn.classList.add('correct');
       correctCount++;
+      // 更新分数和连击
+      score += 10 * (streak + 1); // 连击加成
+      streak++;
+      if (streak > maxStreak) maxStreak = streak;
+      updateScoreUI();
+      updateStreakUI();
+      playStreakSound(); // 连击音效
       var itemId = question.idiomId || question.poemId || question.englishId;
       if (itemId) GameStorage.removeWrong(currentSubject, itemId);
       playCorrectSound();
@@ -486,6 +514,9 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       btn.classList.add('wrong');
       btn.classList.add('shake');
       hearts--;
+      // 重置连击
+      streak = 0;
+      updateStreakUI();
       updateHearts();
       var itemId2 = question.idiomId || question.poemId || question.englishId;
       if (itemId2) GameStorage.addWrong(currentSubject, itemId2);
@@ -499,6 +530,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function nextQuestion() {
+    // 清除倒计时
+    clearCountdown();
     currentQIndex++;
     if (currentQIndex >= TOTAL_QUESTIONS || currentQIndex >= currentQuestions.length) {
       finishLevel();
@@ -545,6 +578,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
   // ===== pass / fail =====
   function finishLevel() {
+    // 清除倒计时
+    clearCountdown();
     var elapsed = (Date.now() - startTime) / 1000;
     var pct = correctCount / TOTAL_QUESTIONS;
     var stars = 1;
@@ -559,6 +594,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function failLevel() {
+    // 清除倒计时
+    clearCountdown();
     showResult(0, 0, false);
   }
 
@@ -890,6 +927,80 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   function initShop() {
     updateGiftsDisplay();
     updateShopFreeTime();
+  }
+
+
+  // ===== 更新分数UI =====
+  function updateScoreUI() {
+    var el = document.getElementById('quiz-score');
+    if (el) el.textContent = score;
+  }
+
+  // ===== 更新连击UI =====
+  function updateStreakUI() {
+    var el = document.getElementById('quiz-streak');
+    if (el) el.textContent = streak;
+  }
+
+  // ===== 倒计时 =====
+  function startCountdown() {
+    clearCountdown();
+    countdownValue = 30;
+    updateCountdownUI();
+    countdownTimer = setInterval(function() {
+      countdownValue--;
+      updateCountdownUI();
+      var el = document.getElementById('quiz-countdown');
+      if (el && countdownValue <= 10) el.parentElement.classList.add('warning');
+      if (countdownValue <= 0) {
+        clearCountdown();
+        hearts--;
+        streak = 0;
+        updateHearts();
+        updateStreakUI();
+        if (hearts <= 0) {
+          setTimeout(function() { failLevel(); }, 500);
+        } else {
+          setTimeout(nextQuestion, 500);
+        }
+      }
+    }, 1000);
+  }
+
+  function clearCountdown() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+    var el = document.getElementById('quiz-countdown');
+    if (el) el.parentElement.classList.remove('warning');
+  }
+
+  function updateCountdownUI() {
+    var el = document.getElementById('quiz-countdown');
+    if (el) el.textContent = countdownValue;
+  }
+
+  // ===== 连击音效 =====
+  function playStreakSound() {
+    if (!isSoundEnabled || streak < 2) return;
+    try {
+      var ctx = getAudioCtx();
+      if (!ctx) return;
+      var freq = streak >= 5 ? 1046.50 : streak >= 3 ? 783.99 : 659.25;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {
+      console.warn('Streak sound error:', e);
+    }
   }
 
   // ===== public API =====
