@@ -12,6 +12,7 @@ const App = (function () {
   var startTime = 0;
   var isSoundEnabled = true;
   var isSpeechSupported = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
+var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
 
   var TOTAL_QUESTIONS = 5;
   var MAX_HEARTS = 3;
@@ -335,8 +336,26 @@ const App = (function () {
     }
     if (!text) text = q.q;
 
-    // 使用 Web Speech API
-    speakWithWebSpeech(text, lang);
+    // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
+    if (isAndroidTTSAvailable) {
+      speakWithAndroidTTS(text, lang);
+    } else {
+      speakWithWebSpeech(text, lang);
+    }
+  }
+
+  // Android 原生 TTS
+  function speakWithAndroidTTS(text, lang) {
+    if (!text) { fallbackToPrompt(''); return; }
+    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang);
+    try {
+      window.AndroidTTS.speak(text, lang || 'zh-CN');
+      console.log('[speakWithAndroidTTS] speak called');
+    } catch(e) {
+      console.error('[speakWithAndroidTTS] error:', e);
+      // 回退到 Web Speech API
+      speakWithWebSpeech(text, lang);
+    }
   }
 
   function speakWithWebSpeech(text, lang) {
