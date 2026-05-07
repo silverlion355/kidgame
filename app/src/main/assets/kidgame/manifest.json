@@ -1,0 +1,10 @@
+{
+  "name": "萌娃闯关",
+  "short_name": "萌娃闯关",
+  "description": "成语·古诗·英语 闯关学习游戏",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#4A90D9",
+  "icons": []
+}

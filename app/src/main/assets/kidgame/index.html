@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>萌娃闯关 - 成语·古诗·英语</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div class="container">
+
+    <!-- ========== 首页 ========== -->
+    <div id="home-screen" class="screen active">
+      <div class="top-bar">
+        <div class="coin">🪙 <span id="home-coins">0</span></div>
+        <button class="sound-toggle" id="sound-toggle" onclick="App.toggleSound()">🔊</button>
+        <div class="hint-badge">💡 <span id="home-hints">0</span></div>
+	        <div id="free-time-display" style="display:none"></div>
+	        
+      </div>
+
+      <div class="home-title bounce-in">
+        <h1>🎮 萌娃闯关</h1>
+        <p>成语 · 古诗 · 英语</p>
+      </div>
+
+      <div class="subject-card fade-in" style="animation-delay: 0.1s" onclick="App.goToLevels('idiom')">
+        <div class="subject-icon idiom">📚</div>
+        <div class="subject-info">
+          <h3>成语乐园</h3>
+          <p>闯关学成语，妙语连珠</p>
+          <div class="subject-progress">
+            <span class="stars-tiny" id="idiom-stars">☆☆☆</span>
+            <span id="idiom-level">第1关</span>
+          </div>
+        </div>
+        <div>›</div>
+      </div>
+
+      <div class="subject-card fade-in" style="animation-delay: 0.2s" onclick="App.goToLevels('poem')">
+        <div class="subject-icon poem">🎋</div>
+        <div class="subject-info">
+          <h3>古诗天地</h3>
+          <p>诵读经典诗，传承文化</p>
+          <div class="subject-progress">
+            <span class="stars-tiny" id="poem-stars">☆☆☆</span>
+            <span id="poem-level">第1关</span>
+          </div>
+        </div>
+        <div>›</div>
+      </div>
+
+      <div class="subject-card fade-in" style="animation-delay: 0.3s" onclick="App.goToLevels('english')">
+        <div class="subject-icon english">🔤</div>
+        <div class="subject-info">
+          <h3>英语世界</h3>
+          <p>快乐记单词，世界更精彩</p>
+          <div class="subject-progress">
+            <span class="stars-tiny" id="english-stars">☆☆☆</span>
+            <span id="english-level">第1关</span>
+          </div>
+        </div>
+        <div>›</div>
+      </div>
+
+      
+      
+      
+      <div class="subject-card fade-in" style="animation-delay: 0.4s" onclick="App.showWrongBook()">
+        <div class="subject-icon" style="background:#FCE4EC">📖</div>
+        <div class="subject-info">
+          <h3>错题本</h3>
+          <p>温故知新，查漏补缺</p>
+        </div>
+        <div>›</div>
+      </div>
+
+      <div class="subject-card fade-in" style="animation-delay: 0.45s" onclick="App.showShop()">
+        <div class="subject-icon" style="background:#FFF3E0">🎁</div>
+        <div class="subject-info">
+          <h3>萌娃商店</h3>
+          <p>金币换好礼，惊喜等你来</p>
+        </div>
+        <div>›</div>
+      </div>
+
+      
+            <div id="gifts-display"></div>
+
+<div class="home-footer fade-in" style="animation-delay: 0.5s">
+        <p>🎉 每天进步一点点 🎉</p>
+      </div>
+
+    </div>
+
+    <!-- ========== 关卡选择 ========== -->
+    <div id="levels-screen" class="screen">
+      <div class="top-bar">
+        <button class="btn-back" onclick="App.showScreen('home-screen')">‹</button>
+        <h3 id="levels-title">选择关卡</h3>
+        <div></div>
+      </div>
+      <div id="levels-grid" class="level-grid"></div>
+    </div>
+
+    <!-- ========== 答题界面 ========== -->
+    <div id="quiz-screen" class="screen">
+      <div class="quiz-header">
+        <button class="btn-back" onclick="App.confirmQuit()">‹</button>
+        <div class="level-info" id="quiz-level-info">第1关</div>
+        <div class="hearts" id="hearts">❤️❤️❤️</div>
+      </div>
+      <div class="progress-bar">
+        <div class="fill" id="quiz-progress" style="width:0%"></div>
+      </div>
+
+      <div class="question-card fade-in" id="question-card">
+        <div class="question-text" id="question-text"></div>
+        <button class="speaker-btn" id="speaker-btn" style="display:none" onclick="App.speakQuestion()">🔊</button>
+      </div>
+
+      <div class="options" id="options-container"></div>
+
+
+      <button class="hint-btn" id="hint-btn" onclick="App.useHint()">
+        💡 使用提示卡（剩余：<span id="quiz-hints">0</span>）
+      </button>
+
+    </div>
+
+    <!-- ========== 错题本 ========== -->
+    <div id="wrongbook-screen" class="screen">
+      <div class="top-bar">
+        <button class="btn-back" onclick="App.showScreen('home-screen')">‹</button>
+        <h3>错题本</h3>
+        <div></div>
+      </div>
+      <div id="wrongbook-content"></div>
+    </div>
+    
+    <!-- ========== 萌娃商店 ========== -->
+    <div id="shop-screen" class="screen">
+      <div class="top-bar">
+        <button class="btn-back" onclick="App.hideShop()">‹</button>
+        <h3>🎁 萌娃商店</h3>
+        <div></div>
+      </div>
+      <div class="shop-coins">🪙 <span id="shop-coins">0</span></div>
+      <div class="shop-section">
+        <h3>⏰ 休闲时间</h3>
+        <div class="shop-item" onclick="App.buyFreeTime()">
+          <div class="shop-item-icon">⏰</div>
+          <div class="shop-item-info">
+            <h4>1分钟休闲时间</h4>
+            <p>休息一下，继续加油！</p>
+          </div>
+          <div class="shop-item-price">100 🪙</div>
+        </div>
+        <div class="free-time-balance" id="shop-free-time-balance">余额：0 分钟</div>
+        <button class="modal-btn" id="use-free-time-btn" onclick="App.showUseFreeTimeModal()" style="display:none;margin-top:8px;width:100%;">⏰ 使用休闲时间</button>
+      </div>
+      <div class="shop-section">
+        <h3>🎁 小礼物</h3>
+        <div id="shop-items" class="shop-items-grid"></div>
+      </div>
+    </div>
+
+    <!-- ========== 结果弹窗 ========== -->
+    <div class="modal-overlay" id="result-modal">
+      <div class="modal">
+        <h2 id="result-title">🎉 恭喜过关！</h2>
+        <div class="stars-big" id="result-stars">⭐⭐⭐</div>
+        <p id="result-msg">太棒了！继续加油！</p>
+        <div>
+          <button class="modal-btn" onclick="App.nextLevel()">下一关</button>
+          <button class="modal-btn secondary" onclick="App.retryLevel()">再试一次</button>
+          <button class="modal-btn secondary" onclick="App.goHome()" style="margin-top:8px;">回到主菜单</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 每日奖励 ========== -->
+    <div class="reward-popup" id="reward-popup">
+      <div class="coin-icon">🪙</div>
+      <h3>每日登录奖励！</h3>
+      <p id="reward-text">获得 15 金币</p>
+      <button class="modal-btn" onclick="App.closeReward()">太好了！</button>
+    </div>
+
+    <!-- ========== 使用休闲时间弹窗 ========== -->
+    <div class="modal-overlay" id="use-free-time-modal">
+      <div class="modal">
+        <h2>⏰ 使用休闲时间</h2>
+        <p>当前余额：<span id="modal-balance">0</span> 分钟</p>
+        <div style="margin:16px 0;">
+          <button class="modal-btn" style="margin:4px" onclick="App.useFreeTimeQuick(1)">1分钟</button>
+          <button class="modal-btn" style="margin:4px" onclick="App.useFreeTimeQuick(3)">3分钟</button>
+          <button class="modal-btn" style="margin:4px" onclick="App.useFreeTimeQuick(5)">5分钟</button>
+          <button class="modal-btn secondary" style="margin:4px" onclick="App.useFreeTimeQuick(999)">全部</button>
+        </div>
+        <div style="margin:12px 0;">
+          <input type="number" id="use-minutes-input" min="1" placeholder="自定义分钟数"
+            style="width:80%;padding:8px;border-radius:8px;border:1px solid #ddd;font-size:16px;text-align:center;">
+        </div>
+        <div>
+          <button class="modal-btn" onclick="App.confirmUseFreeTime()">确定</button>
+          <button class="modal-btn secondary" onclick="App.closeUseFreeTimeModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 音效通过 Web Audio API 生成，无需外部文件 -->
+
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/data-manager.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

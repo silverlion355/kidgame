@@ -1,0 +1,12 @@
+[
+  { "id": "gift_001", "name": "小星星", "icon": "⭐", "price": 50, "desc": "闪闪发光的小星星" },
+  { "id": "gift_002", "name": "小花朵", "icon": "🌸", "price": 80, "desc": "一朵美丽的花朵" },
+  { "id": "gift_003", "name": "小皇冠", "icon": "👑", "price": 120, "desc": "小小国王的皇冠" },
+  { "id": "gift_004", "name": "小火箭", "icon": "🚀", "price": 150, "desc": "嗖——飞上天啦" },
+  { "id": "gift_005", "name": "小蛋糕", "icon": "🎂", "price": 100, "desc": "香甜可口的小蛋糕" },
+  { "id": "gift_006", "name": "小气球", "icon": "🎈", "price": 60, "desc": "五颜六色的小气球" },
+  { "id": "gift_007", "name": "小奖杯", "icon": "🏆", "price": 200, "desc": "你是第一名！" },
+  { "id": "gift_008", "name": "小礼物盒", "icon": "🎁", "price": 180, "desc": "里面藏着惊喜哦" },
+  { "id": "gift_009", "name": "小彩虹", "icon": "🌈", "price": 160, "desc": "雨后的美丽彩虹" },
+  { "id": "gift_010", "name": "小月亮", "icon": "🌙", "price": 140, "desc": "晚上陪你睡觉" }
+]
