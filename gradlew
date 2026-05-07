@@ -19,22 +19,22 @@ cd "`dirname \"$PRG\"`/" >/dev/null
 APP_HOME="`pwd -P`"
 cd "$SAVED" >/dev/null
 
-CLASSPATH=\"$APP_HOME/gradle/wrapper/gradle-wrapper.jar\"
-EXECUTABLE=\"$APP_HOME/gradlew\"
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+EXECUTABLE=$APP_HOME/gradlew
 
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS=\"\"
+DEFAULT_JVM_OPTS=""
 
 # Use the maximum available from the JVM options. This is needed for Gradle to work.
-MAX_FD=\"maximum\"
+MAX_FD="maximum"
 
 warn () {
-    echo \"$*\"
+    echo "$*"
 }
 
 die () {
     echo
-    echo \"$*\"
+    echo "$*"
     echo
     exit 1
 }
@@ -44,32 +44,46 @@ cygwin=false
 msys=false
 darwin=false
 nonstop=false
-case \"`uname`\" in
+case "`uname`" in
   CYGWIN* ) cygwin=true ;;
   MINGW* ) msys=true ;;
   Darwin* ) darwin=true ;;
   NONSTOP* ) nonstop=true ;;
 esac
 
-if [ -z \"$JAVA_HOME\" ] ; then
-    JAVACMD=\"java\"
-    which java >/dev/null 2>&1 || die \"ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+if [ -z "$JAVA_HOME" ] ; then
+    JAVACMD="java"
+    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
 
 Please set the JAVA_HOME variable in your environment to match the
-location of your Java installation.\"
+location of your Java installation."
 else
-    JAVACMD=\"$JAVA_HOME/bin/java\"
-    if [ ! -x \"$JAVACMD\" ] ; then
-        die \"ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
+    JAVACMD="$JAVA_HOME/bin/java"
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
 
 Please set the JAVA_HOME variable in your environment to match the
-location of your Java installation.\"
+location of your Java installation."
+    fi
+fi
+
+# Increase the maximum file descriptors if we can.
+if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
+    MAX_FD_LIMIT=`ulimit -H -n`
+    if [ $? -eq 0 ] ; then
+        if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
+            MAX_FD="$MAX_FD_LIMIT"
+        fi
+        ulimit -n $MAX_FD
+        if [ $? -ne 0 ] ; then
+            warn "Could not set maximum file descriptor limit: $MAX_FD"
+        fi
+    else
+        warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
     fi
 fi
 
 # Collect all arguments for the java command, following the shell quoting rules
-# We build the pattern for arguments to be converted via sed
-APP_ARGS=`echo \"$@\" | sed 's/ /\\ /g'`
-set -- $APP_ARGS
+eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$@"
 
-exec \"$JAVACMD\" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS -classpath \"$CLASSPATH\" org.gradle.wrapper.GradleWrapperMain \"$@\"
+exec "$JAVACMD" "$@"
