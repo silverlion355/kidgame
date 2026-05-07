@@ -357,12 +357,12 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
     if (isAndroidTTSAvailable) {
       speakWithAndroidTTS(text, lang);
+    } else {
+      speakWithWebSpeech(text, lang);
     }
 
     // 启动倒计时
-    startCountdown(); else {
-      speakWithWebSpeech(text, lang);
-    }
+    startCountdown();
   }
 
   // Android 原生 TTS
