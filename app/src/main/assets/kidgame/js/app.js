@@ -18,7 +18,7 @@ const App = (function () {
   var TOTAL_QUESTIONS = 5; // 保持不变
   var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
-  var isSpeechSupported = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
+  var isSpeechSupported = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
 var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
 
   var TOTAL_QUESTIONS = 5;
@@ -116,11 +116,17 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
   // ===== init =====
   function init() {
-    DataManager.loadAll();
-    updateHomeUI();
-    checkReward();
-    startBgMusic();
-    initShop();
+    try {
+      DataManager.loadAll();
+      updateHomeUI();
+      checkReward();
+      startBgMusic();
+      initShop();
+      console.log('[init] App initialized successfully');
+    } catch(e) {
+      console.error('[init] Error during initialization:', e);
+      alert('初始化失败: ' + e.message);
+    }
   }
 
   function updateHomeUI() {
@@ -329,9 +335,11 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       if (_voiceList.length > 0) _voicesLoaded = true;
     } catch(e) {}
   }
-  if (isSpeechSupported) {
-    window.speechSynthesis.onvoiceschanged = _loadVoices;
-    _loadVoices();
+  if (isSpeechSupported && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.onvoiceschanged = _loadVoices;
+      _loadVoices();
+    } catch(e) { isSpeechSupported = false; }
   }
 
   // 等待语音列表加载
@@ -419,7 +427,7 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
       try {
         // 先取消当前播放，清理状态
-        window.speechSynthesis.cancel();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         _currentUtter = null;
 
         var utter = new SpeechSynthesisUtterance(text);
@@ -458,15 +466,15 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
         _currentUtter = utter;
         // 确保语音合成恢复（某些浏览器需要）
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-        window.speechSynthesis.speak(utter);
+        if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume();
+        if (window.speechSynthesis) window.speechSynthesis.speak(utter);
         console.log('[speakWithWebSpeech] speak called');
 
         // 超时保护：如果 3 秒后还没开始播放，重置状态
         _speakTimeout = setTimeout(function() {
           if (_currentUtter === utter && !hasStarted) {
             console.warn('[speakWithWebSpeech] Timeout: speech did not start, resetting');
-            try { window.speechSynthesis.cancel(); } catch(ex) {}
+            try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(ex) {}
             _currentUtter = null;
             _speakTimeout = null;
           }
