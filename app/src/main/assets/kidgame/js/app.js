@@ -19,9 +19,41 @@ const App = (function () {
   var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
   var isSpeechSupported = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+var _androidTtsKnownUnavailable = false; // 缓存TTS不可用状态，避免重复检查
+var _ttsInitialized = false; // TTS是否已完成初始化尝试
+
+// 监听Android TTS初始化完成事件（由Java端主动调用）
+window.onAndroidTTSReady = function() {
+  console.log('[onAndroidTTSReady] TTS is ready!');
+  _ttsInitialized = true;
+  _androidTtsKnownUnavailable = false; // 重置，因为现在可用了
+  // 如果还有待播放的语音，继续播放
+  if (_pendingSpeak && !_speakRetryTimer) {
+    console.log('[onAndroidTTSReady] Retrying pending speak...');
+    _doSpeakQuestion();
+  }
+};
+
+// 监听Android TTS初始化失败事件
+window.onAndroidTTSFailed = function() {
+  console.error('[onAndroidTTSFailed] TTS initialization failed!');
+  _androidTtsKnownUnavailable = true;
+  _ttsInitialized = true;
+};
+
 function checkAndroidTTS() {
+  if (_androidTtsKnownUnavailable) return false;
   try {
-    return !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    var available = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    if (!available && window.AndroidTTS) {
+      // AndroidTTS存在但isAvailable返回false，可能是还没初始化好
+      // 不标记为永久不可用，让重试逻辑处理
+    } else if (!window.AndroidTTS) {
+      // AndroidTTS不存在，标记为永久不可用
+      _androidTtsKnownUnavailable = true;
+      console.log('[checkAndroidTTS] AndroidTTS not found, marking as permanently unavailable');
+    }
+    return available;
   } catch(e) { return false; }
 }
 
@@ -403,23 +435,53 @@ function checkAndroidTTS() {
     console.log("[speakQuestion] text:", text, "lang:", lang);
     console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
 
-    // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
-    if (checkAndroidTTS()) {
-      speakWithAndroidTTS(text, lang);
-    } else {
-      console.warn("[speakQuestion] AndroidTTS not available, trying Web Speech");
-      speakWithWebSpeech(text, lang);
-    }
+    // 保存参数，用于重试
+    _pendingSpeak = { text: text, lang: lang, retries: 0 };
+
+    // 尝试发音（会先检查 Android TTS，如果不可用会等待重试）
+    _doSpeakQuestion();
 
     // 启动倒计时
     startCountdown();
   }
 
+  var _pendingSpeak = null;
+  var _speakRetryTimer = null;
+
+  function _doSpeakQuestion() {
+    if (!_pendingSpeak) return;
+    var text = _pendingSpeak.text;
+    var lang = _pendingSpeak.lang;
+
+    // 清除之前的重试定时器
+    if (_speakRetryTimer) { clearTimeout(_speakRetryTimer); _speakRetryTimer = null; }
+
+    if (checkAndroidTTS()) {
+      speakWithAndroidTTS(text, lang);
+    } else {
+      // Android TTS 可能还没初始化好，等待一段时间后重试
+      if (_pendingSpeak.retries < 5) {
+        _pendingSpeak.retries++;
+        console.log("[speakQuestion] AndroidTTS not ready, retry " + _pendingSpeak.retries + "/5 in 300ms");
+        _speakRetryTimer = setTimeout(function() {
+          _doSpeakQuestion();
+        }, 300);
+      } else {
+        // 重试次数用尽，回退到 Web Speech API
+        console.warn("[speakQuestion] AndroidTTS not available after retries, trying Web Speech");
+        speakWithWebSpeech(text, lang);
+      }
+    }
+  }
+
   // Android 原生 TTS
+  var _androidTtsRetryCount = 0;
+  var _maxAndroidTtsRetries = 3;
+
   function speakWithAndroidTTS(text, lang) {
     if (!text) { fallbackToPrompt(''); return; }
     lang = lang || 'zh-CN';
-    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang);
+    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang, "retry:", _androidTtsRetryCount);
     try {
       if (!window.AndroidTTS) {
         console.error('[speakWithAndroidTTS] AndroidTTS not found!');
@@ -428,10 +490,20 @@ function checkAndroidTTS() {
       }
       window.AndroidTTS.speak(text, lang);
       console.log('[speakWithAndroidTTS] speak called successfully');
+      // 重置重试计数
+      _androidTtsRetryCount = 0;
     } catch(e) {
       console.error('[speakWithAndroidTTS] error:', e);
-      // 回退到 Web Speech API
-      speakWithWebSpeech(text, lang);
+      // 重试几次，如果都失败再回退
+      if (_androidTtsRetryCount < _maxAndroidTtsRetries) {
+        _androidTtsRetryCount++;
+        console.log('[speakWithAndroidTTS] Retrying... (' + _androidTtsRetryCount + '/' + _maxAndroidTtsRetries + ')');
+        setTimeout(function() { speakWithAndroidTTS(text, lang); }, 300);
+      } else {
+        console.warn('[speakWithAndroidTTS] All retries failed, fallback to Web Speech');
+        _androidTtsRetryCount = 0;
+        speakWithWebSpeech(text, lang);
+      }
     }
   }
 
@@ -444,7 +516,7 @@ function checkAndroidTTS() {
 
     // 等待语音列表加载完成后播放
     _waitForVoices(function() {
-      console.log("[speakWithWebSpeech] Available voices:", _voiceList.map(v => v.name + '(' + v.lang + ')'));
+      console.log("[speakWithWebSpeech] Available voices (" + _voiceList.length + "):", _voiceList.length > 0 ? _voiceList.map(v => v.name + '(' + v.lang + ')') : 'NONE');
 
       try {
         // 先取消当前播放，清理状态
@@ -453,11 +525,11 @@ function checkAndroidTTS() {
 
         var utter = new SpeechSynthesisUtterance(text);
         utter.lang = lang || 'zh-CN';
-        utter.rate = 0.8;
+        utter.rate = 0.9;
         utter.volume = 1.0;
 
         // 显式选择对应语言的语音
-        if (lang && lang.startsWith('en')) {
+        if (lang && lang.startsWith('en') && _voiceList.length > 0) {
           var enVoice = _voiceList.find(function(v) { return v.lang.startsWith('en'); });
           if (enVoice) {
             utter.voice = enVoice;
@@ -465,6 +537,8 @@ function checkAndroidTTS() {
           } else {
             console.warn("[speakWithWebSpeech] No English voice found! Available:", _voiceList.map(function(v) { return v.lang; }));
           }
+        } else if (_voiceList.length === 0) {
+          console.warn("[speakWithWebSpeech] No voices available! Speech may not work.");
         }
 
         var hasStarted = false;
@@ -477,10 +551,11 @@ function checkAndroidTTS() {
           _currentUtter = null;
         };
         utter.onerror = function(e) {
-          console.error('[speakWithWebSpeech] error:', e.error || e);
+          var err = e.error || (e.type === 'error' ? 'error' : 'unknown');
+          console.error('[speakWithWebSpeech] error:', err);
           _currentUtter = null;
           // 如果是 interrupted 或 canceled，不用 fallback
-          if (e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
+          if (err !== 'interrupted' && err !== 'canceled') {
             fallbackToPrompt(text);
           }
         };
@@ -488,8 +563,14 @@ function checkAndroidTTS() {
         _currentUtter = utter;
         // 确保语音合成恢复（某些浏览器需要）
         if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume();
-        if (window.speechSynthesis) window.speechSynthesis.speak(utter);
-        console.log('[speakWithWebSpeech] speak called');
+        if (window.speechSynthesis) {
+          window.speechSynthesis.speak(utter);
+          console.log('[speakWithWebSpeech] speak called');
+        } else {
+          console.error('[speakWithWebSpeech] speechSynthesis not available!');
+          fallbackToPrompt(text);
+          return;
+        }
 
         // 超时保护：如果 3 秒后还没开始播放，重置状态
         _speakTimeout = setTimeout(function() {
@@ -498,6 +579,7 @@ function checkAndroidTTS() {
             try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(ex) {}
             _currentUtter = null;
             _speakTimeout = null;
+            fallbackToPrompt(text);
           }
         }, 3000);
       } catch(e) {
