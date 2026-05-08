@@ -267,7 +267,7 @@ function checkAndroidTTS() {
     // 处理题目文本：先构建 qText，再统一替换 {{BLANK:n}}
     var qText = q.q;
 
-    // 诗词题目：显示两句（当前句和下一句）+ 题目带田字格
+    // 诗词题目：显示两句 + 答案词变成田字格
     if (currentSubject === 'poem') {
       var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
       if (poemItem && poemItem.content) {
@@ -280,8 +280,16 @@ function checkAndroidTTS() {
             } else if (i - 1 >= 0) {
               lines.unshift(poemItem.content[i - 1]);
             }
-            // 两句诗词作为提示，显示在题目上方；qText 保留 q.q（含{{BLANK:n}}）
-            qText = lines.join('<br>') + '<br><br>' + q.q;
+            // 把答案词替换成田字格
+            var answerLen = q.answer.length;
+            var tianziHtml = '';
+            for (var t = 0; t < answerLen; t++) {
+              tianziHtml += '<span class="tianzi-cell"></span>';
+            }
+            var displayLines = lines.map(function(line) {
+              return line.replace(q.answer, tianziHtml);
+            });
+            qText = displayLines.join('<br>');
             break;
           }
         }
@@ -385,18 +393,21 @@ function checkAndroidTTS() {
       }
       lang = 'zh-CN';
     } else if (currentSubject === 'english') {
-      // 英语题目：读中文释义，避免英文语音问题
       var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
       if (engItem) text = engItem.meaning_cn || engItem.word;
-      lang = 'zh-CN';
+      lang = 'en';
       if (!text) text = q.q || q.answer;
     }
     if (!text) text = q.q;
+
+    console.log("[speakQuestion] text:", text, "lang:", lang);
+    console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
 
     // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
     if (checkAndroidTTS()) {
       speakWithAndroidTTS(text, lang);
     } else {
+      console.warn("[speakQuestion] AndroidTTS not available, trying Web Speech");
       speakWithWebSpeech(text, lang);
     }
 
@@ -407,10 +418,16 @@ function checkAndroidTTS() {
   // Android 原生 TTS
   function speakWithAndroidTTS(text, lang) {
     if (!text) { fallbackToPrompt(''); return; }
+    lang = lang || 'zh-CN';
     console.log("[speakWithAndroidTTS] text:", text, "lang:", lang);
     try {
-      window.AndroidTTS.speak(text, lang || 'zh-CN');
-      console.log('[speakWithAndroidTTS] speak called');
+      if (!window.AndroidTTS) {
+        console.error('[speakWithAndroidTTS] AndroidTTS not found!');
+        speakWithWebSpeech(text, lang);
+        return;
+      }
+      window.AndroidTTS.speak(text, lang);
+      console.log('[speakWithAndroidTTS] speak called successfully');
     } catch(e) {
       console.error('[speakWithAndroidTTS] error:', e);
       // 回退到 Web Speech API
