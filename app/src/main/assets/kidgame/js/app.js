@@ -254,7 +254,7 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     card.classList.remove('fade-in');
     void card.offsetWidth;
     card.classList.add('fade-in');
-    // 将 {{BLANK:n}} 替换为对应数量的田字方格
+    // 处理题目文本：先构建 qText，再统一替换 {{BLANK:n}}
     var qText = q.q;
 
     // 诗词题目：显示两句（当前句和下一句）
@@ -278,6 +278,7 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       }
     }
 
+    // 统一替换 {{BLANK:n}} 为田字方格（诗词两句中的空缺也要替换）
     qText = qText.replace(/{{BLANK:(\d+)}}/g, function(match, len) {
       var html = '';
       for (var i = 0; i < parseInt(len); i++) {
