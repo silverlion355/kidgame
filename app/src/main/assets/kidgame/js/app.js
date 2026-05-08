@@ -267,9 +267,10 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
     // Show speaker button for English/idiom/poem questions
     var speakerBtn = document.getElementById("speaker-btn");
-    if (speakerBtn) {
-      speakerBtn.style.display = isSpeechSupported ? "block" : "none";
-    }
+      // 显示喇叭按钮：Web Speech API 或 Android TTS 可用
+      if (speakerBtn) {
+        speakerBtn.style.display = (isSpeechSupported || isAndroidTTSAvailable) ? "block" : "none";
+      }
 
     var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
     document.getElementById('quiz-progress').style.width = progress + '%';
