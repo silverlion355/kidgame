@@ -1076,3 +1076,13 @@ body {
   0% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-40px); }
 }
+
+/* 喇叭按钮行 */
+.speaker-row {
+  text-align: center;
+  margin: 12px 0;
+}
+.speaker-row .speaker-btn {
+  display: inline-block;
+  margin: 0 auto;
+}

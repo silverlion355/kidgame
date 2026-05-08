@@ -117,10 +117,14 @@
 
       <div class="question-card fade-in" id="question-card">
         <div class="question-text" id="question-text"></div>
-        <button class="speaker-btn" id="speaker-btn" style="display:none" onclick="App.speakQuestion()">🔊</button>
+        
       </div>
 
       <div class="options" id="options-container"></div>
+
+      <div class="speaker-row">
+        <button class="speaker-btn" id="speaker-btn" style="display:none" onclick="App.speakQuestion()">🔊</button>
+      </div>
 
 
       <button class="hint-btn" id="hint-btn" onclick="App.useHint()">
@@ -130,7 +134,7 @@
     </div>
 
     <!-- ========== 错题本 ========== -->
-    <div id="wrongbook-screen" class="screen">
+      <div id="wrongbook-screen" class="screen">
       <div class="top-bar">
         <button class="btn-back" onclick="App.showScreen('home-screen')">‹</button>
         <h3>错题本</h3>
