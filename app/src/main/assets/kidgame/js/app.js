@@ -289,9 +289,9 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
     // Show speaker button for English/idiom/poem questions
     var speakerBtn = document.getElementById("speaker-btn");
-      // 显示喇叭按钮：Web Speech API 或 Android TTS 可用
       if (speakerBtn) {
-        speakerBtn.style.display = (isSpeechSupported || isAndroidTTSAvailable) ? "block" : "none";
+        // 始终显示喇叭按钮（用户反馈看不到）
+        speakerBtn.style.display = 'block';
       }
 
     var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
@@ -677,11 +677,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function confirmQuit() {
-    console.log('[confirmQuit] called, currentQIndex:', currentQIndex, 'currentScreen:', document.querySelector('.screen.active')?.id);
-    alert('返回首页'); // 调试：确认函数被调用
-    if (currentQIndex > 0) {
-      if (!confirm('确定要退出吗？当前进度会丢失。')) return;
-    }
+    // 直接返回首页
+    try { clearCountdown(); } catch(e) {}
     showScreen('home-screen');
     updateHomeUI();
   }
