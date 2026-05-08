@@ -256,6 +256,28 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     card.classList.add('fade-in');
     // 将 {{BLANK:n}} 替换为对应数量的田字方格
     var qText = q.q;
+
+    // 诗词题目：显示两句（当前句和下一句）
+    if (currentSubject === 'poem') {
+      var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
+      if (poemItem && poemItem.content) {
+        for (var i = 0; i < poemItem.content.length; i++) {
+          if (poemItem.content[i].indexOf(q.answer) !== -1) {
+            var lines = [poemItem.content[i]];
+            // 添加下一句（如果有）
+            if (i + 1 < poemItem.content.length) {
+              lines.push(poemItem.content[i + 1]);
+            } else if (i - 1 >= 0) {
+              // 如果是最后一句，显示前一句和当前句
+              lines.unshift(poemItem.content[i - 1]);
+            }
+            qText = lines.join('<br>');
+            break;
+          }
+        }
+      }
+    }
+
     qText = qText.replace(/{{BLANK:(\d+)}}/g, function(match, len) {
       var html = '';
       for (var i = 0; i < parseInt(len); i++) {
@@ -655,6 +677,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function confirmQuit() {
+    console.log('[confirmQuit] called, currentQIndex:', currentQIndex, 'currentScreen:', document.querySelector('.screen.active')?.id);
+    alert('返回首页'); // 调试：确认函数被调用
     if (currentQIndex > 0) {
       if (!confirm('确定要退出吗？当前进度会丢失。')) return;
     }
