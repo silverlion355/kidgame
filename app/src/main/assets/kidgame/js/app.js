@@ -682,10 +682,10 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
   function confirmQuit() {
     console.log('[confirmQuit] called, currentQIndex:', currentQIndex);
-    // 清除倒计时
-    try { clearCountdown(); } catch(e) {}
-    // 强制返回首页
     try {
+      // 清除倒计时
+      try { clearCountdown(); } catch(e) {}
+      // 强制返回首页
       document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
       var home = document.getElementById('home-screen');
       if (home) {
@@ -700,11 +700,7 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       console.error('[confirmQuit] error:', e);
       alert('返回失败: ' + e.message);
     }
-  } catch(e) {}
-    showScreen('home-screen');
-    updateHomeUI();
   }
-
   // ===== wrong book =====
   function showWrongBook() {
     showScreen('wrongbook-screen');
