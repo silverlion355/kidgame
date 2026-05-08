@@ -19,7 +19,11 @@ const App = (function () {
   var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
   var isSpeechSupported = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
-var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+function checkAndroidTTS() {
+  try {
+    return !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+  } catch(e) { return false; }
+}
 
   var TOTAL_QUESTIONS = 5;
   var MAX_HEARTS = 3;
@@ -263,21 +267,21 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     // 处理题目文本：先构建 qText，再统一替换 {{BLANK:n}}
     var qText = q.q;
 
-    // 诗词题目：显示两句（当前句和下一句）
+    // 诗词题目：显示两句（当前句和下一句）+ 题目带田字格
     if (currentSubject === 'poem') {
       var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
       if (poemItem && poemItem.content) {
         for (var i = 0; i < poemItem.content.length; i++) {
           if (poemItem.content[i].indexOf(q.answer) !== -1) {
-            var lines = [poemItem.content[i]];
-            // 添加下一句（如果有）
+            var lines = [];
+            lines.push(poemItem.content[i]);
             if (i + 1 < poemItem.content.length) {
               lines.push(poemItem.content[i + 1]);
             } else if (i - 1 >= 0) {
-              // 如果是最后一句，显示前一句和当前句
               lines.unshift(poemItem.content[i - 1]);
             }
-            qText = lines.join('<br>');
+            // 两句诗词作为提示，显示在题目上方；qText 保留 q.q（含{{BLANK:n}}）
+            qText = lines.join('<br>') + '<br><br>' + q.q;
             break;
           }
         }
@@ -390,7 +394,7 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     if (!text) text = q.q;
 
     // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
-    if (isAndroidTTSAvailable) {
+    if (checkAndroidTTS()) {
       speakWithAndroidTTS(text, lang);
     } else {
       speakWithWebSpeech(text, lang);
