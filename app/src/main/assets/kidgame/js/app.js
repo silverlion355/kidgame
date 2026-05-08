@@ -1073,4 +1073,3 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 })();
 
 document.addEventListener('DOMContentLoaded', function() { App.init(); });
-// trigger rebuild Fri May  8 11:05:49 UTC 2026
