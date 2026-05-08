@@ -394,7 +394,7 @@ function checkAndroidTTS() {
       lang = 'zh-CN';
     } else if (currentSubject === 'english') {
       var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
-      if (engItem) text = engItem.meaning_cn || engItem.word;
+      if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
       lang = 'en';
       if (!text) text = q.q || q.answer;
     }
