@@ -290,10 +290,13 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
     // Show speaker button for English/idiom/poem questions
     var speakerBtn = document.getElementById("speaker-btn");
-      if (speakerBtn) {
-        // 始终显示喇叭按钮（用户反馈看不到）
-        speakerBtn.style.display = 'block';
-      }
+    // 始终显示喇叭按钮
+    if (speakerBtn) {
+      speakerBtn.style.display = 'block';
+      speakerBtn.style.visibility = 'visible';
+      speakerBtn.style.opacity = '1';
+      console.log('[showQuestion] speaker button displayed');
+    }
 
     var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
     document.getElementById('quiz-progress').style.width = progress + '%';
@@ -678,8 +681,26 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function confirmQuit() {
-    // 直接返回首页
+    console.log('[confirmQuit] called, currentQIndex:', currentQIndex);
+    // 清除倒计时
     try { clearCountdown(); } catch(e) {}
+    // 强制返回首页
+    try {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      var home = document.getElementById('home-screen');
+      if (home) {
+        home.classList.add('active');
+        console.log('[confirmQuit] home-screen activated');
+      }
+      updateHomeUI();
+      // 重置游戏状态
+      currentQuestions = [];
+      currentQIndex = 0;
+    } catch(e) {
+      console.error('[confirmQuit] error:', e);
+      alert('返回失败: ' + e.message);
+    }
+  } catch(e) {}
     showScreen('home-screen');
     updateHomeUI();
   }
