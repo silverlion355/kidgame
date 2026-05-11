@@ -9,20 +9,25 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
+import android.widget.Toast;
+import android.os.Handler;
+import android.os.Looper;
 
 import java.util.HashMap;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "KidGameTTS";
     private WebView webView;
     private TextToSpeech tts;
     private boolean ttsReady = false;
-    private boolean ttsInitialized = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Log.d(TAG, "Creating activity...");
 
         // Setup WebView first
         webView = findViewById(R.id.webview);
@@ -31,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        // 允许访问内容
+        settings.setAllowContentAccess(true);
 
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
@@ -41,82 +48,166 @@ public class MainActivity extends AppCompatActivity {
                 view.loadUrl(url);
                 return true;
             }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                Log.d(TAG, "Page loaded: " + url);
+                // 页面加载完成后，如果TTS已经就绪，通知页面
+                if (ttsReady) {
+                    notifyTTSReady();
+                }
+            }
         });
 
         // Load the kidgame HTML file from assets
         webView.loadUrl("file:///android_asset/kidgame/index.html");
 
-        // Initialize Android TTS (after WebView is ready)
+        // Initialize Android TTS
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
-                ttsInitialized = true;
+                Log.d(TAG, "TTS init status: " + status);
                 if (status == TextToSpeech.SUCCESS) {
                     ttsReady = true;
-                    Log.d("KidGameTTS", "TTS initialized successfully");
 
-                    // Test if the locale is available
-                    int enAvailable = tts.isLanguageAvailable(Locale.ENGLISH);
-                    int zhAvailable = tts.isLanguageAvailable(Locale.SIMPLIFIED_CHINESE);
-                    Log.d("KidGameTTS", "English available: " + enAvailable + ", Chinese available: " + zhAvailable);
+                    // 设置UtteranceProgressListener来监听语音状态
+                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override
+                        public void onStart(String utteranceId) {
+                            Log.d(TAG, "TTS started: " + utteranceId);
+                        }
 
-                    // Notify the web page that TTS is ready
-                    if (webView != null) {
-                        webView.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                webView.evaluateJavascript("if(window.onAndroidTTSReady) window.onAndroidTTSReady();", null);
-                            }
-                        });
-                    }
+                        @Override
+                        public void onDone(String utteranceId) {
+                            Log.d(TAG, "TTS completed: " + utteranceId);
+                            // 通知JS语音播放完成
+                            final String id = utteranceId;
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    webView.evaluateJavascript("if(window.onTTSComplete) window.onTTSComplete('" + id + "');", null);
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onError(String utteranceId) {
+                            Log.e(TAG, "TTS error: " + utteranceId);
+                        }
+                    });
+
+                    // 测试语音是否可用
+                    int enResult = tts.isLanguageAvailable(Locale.US);
+                    int zhResult = tts.isLanguageAvailable(Locale.CHINA);
+                    Log.d(TAG, "English availability: " + enResult + " (LANG_AVAILABLE=" + TextToSpeech.LANG_AVAILABLE + ")");
+                    Log.d(TAG, "Chinese availability: " + zhResult);
+
+                    // 通知页面TTS已就绪
+                    notifyTTSReady();
+
+                    // 如果需要，可以在这里进行一次测试朗读
+                    Log.d(TAG, "TTS is ready! Speaking test...");
+                    // 简短测试
+                    tts.speak("ready", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
+                    tts.stop(); // 立即停止测试
                 } else {
-                    Log.e("KidGameTTS", "TTS initialization failed: " + status);
-                    // Notify the web page that TTS failed
-                    if (webView != null) {
-                        webView.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                webView.evaluateJavascript("if(window.onAndroidTTSFailed) window.onAndroidTTSFailed();", null);
-                            }
-                        });
-                    }
+                    Log.e(TAG, "TTS init failed with status: " + status);
+                    notifyTTSFailed();
                 }
             }
         });
+    }
+
+    private void notifyTTSReady() {
+        if (webView != null) {
+            webView.post(new Runnable() {
+                @Override
+                public void run() {
+                    webView.evaluateJavascript("if(window.onAndroidTTSReady) window.onAndroidTTSReady();", null);
+                }
+            });
+        }
+    }
+
+    private void notifyTTSFailed() {
+        if (webView != null) {
+            webView.post(new Runnable() {
+                @Override
+                public void run() {
+                    webView.evaluateJavascript("if(window.onAndroidTTSFailed) window.onAndroidTTSFailed();", null);
+                }
+            });
+        }
     }
 
     // JavaScript interface for TTS
     private class TTSEngine {
         @JavascriptInterface
         public boolean isAvailable() {
+            Log.d(TAG, "isAvailable called, returning: " + ttsReady);
             return ttsReady;
         }
 
         @JavascriptInterface
-        public boolean isInitialized() {
-            return ttsInitialized;
-        }
-
-        @JavascriptInterface
         public void speak(String text, String lang) {
-            if (!ttsReady || text == null || text.isEmpty()) {
-                Log.w("KidGameTTS", "speak() called but TTS not ready");
+            Log.d(TAG, "speak called: text='" + text + "', lang='" + lang + "', ttsReady=" + ttsReady);
+            if (!ttsReady) {
+                Log.w(TAG, "TTS not ready, cannot speak");
                 return;
             }
-            Locale locale = lang != null && lang.startsWith("en") ? Locale.ENGLISH : Locale.SIMPLIFIED_CHINESE;
-            int avail = tts.isLanguageAvailable(locale);
-            if (avail < TextToSpeech.LANG_AVAILABLE) {
-                Log.w("KidGameTTS", "Locale " + locale + " not fully available, trying anyway...");
+            if (text == null || text.isEmpty()) {
+                Log.w(TAG, "Empty text, cannot speak");
+                return;
             }
-            tts.setLanguage(locale);
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kidgame-utterance");
-            Log.d("KidGameTTS", "Speaking: " + text + " (lang=" + lang + ")");
+
+            try {
+                Locale locale;
+                if (lang != null && lang.toLowerCase().startsWith("en")) {
+                    locale = Locale.US;
+                } else {
+                    locale = Locale.CHINA;
+                }
+
+                // 检查语言是否可用
+                int avail = tts.isLanguageAvailable(locale);
+                Log.d(TAG, "Language " + locale + " availability: " + avail);
+
+                if (avail >= TextToSpeech.LANG_AVAILABLE) {
+                    tts.setLanguage(locale);
+                } else if (avail >= TextToSpeech.LANG_COUNTRY_AVAILABLE) {
+                    // 尝试使用可用的变体
+                    tts.setLanguage(locale);
+                } else {
+                    // 语言不可用，尝试默认
+                    Log.w(TAG, "Language not available, using default");
+                    tts.setLanguage(Locale.getDefault());
+                }
+
+                // 使用QUEUE_FLUSH确保新语音会打断旧语音
+                HashMap<String, String> params = new HashMap<>();
+                params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tts-" + System.currentTimeMillis());
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
+
+                Log.d(TAG, "Speaking: " + text);
+            } catch (Exception e) {
+                Log.e(TAG, "Error speaking: " + e.getMessage(), e);
+            }
         }
 
         @JavascriptInterface
         public void stop() {
             if (tts != null) {
                 tts.stop();
+                Log.d(TAG, "TTS stopped");
+            }
+        }
+
+        @JavascriptInterface
+        public void test() {
+            Log.d(TAG, "Test method called");
+            if (ttsReady) {
+                speak("测试", "zh-CN");
             }
         }
     }

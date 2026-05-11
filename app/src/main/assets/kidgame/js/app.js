@@ -435,11 +435,18 @@ function checkAndroidTTS() {
     console.log("[speakQuestion] text:", text, "lang:", lang);
     console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
 
-    // 保存参数，用于重试
-    _pendingSpeak = { text: text, lang: lang, retries: 0 };
-
-    // 尝试发音（会先检查 Android TTS，如果不可用会等待重试）
-    _doSpeakQuestion();
+    // 直接尝试发音，不再等待Android TTS初始化
+    // 因为Java端会在初始化完成后调用 onAndroidTTSReady，我们使用这个标志
+    if (checkAndroidTTS()) {
+      speakWithAndroidTTS(text, lang);
+    } else if (_ttsInitialized) {
+      // TTS已经尝试初始化但不可用，直接使用Web Speech
+      speakWithWebSpeech(text, lang);
+    } else {
+      // TTS可能还在初始化中，保存参数用于重试
+      _pendingSpeak = { text: text, lang: lang, retries: 0 };
+      _doSpeakQuestion();
+    }
 
     // 启动倒计时
     startCountdown();
