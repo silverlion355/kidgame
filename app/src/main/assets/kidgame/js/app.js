@@ -10,57 +10,12 @@ const App = (function () {
   var hearts = 3;
   var correctCount = 0;
   var startTime = 0;
-  var score = 0;
-  var streak = 0;
-  var maxStreak = 0;
-  var countdownTimer = null;
-  var countdownValue = 30;
-  var TOTAL_QUESTIONS = 5; // 保持不变
-  var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
-  var isSpeechSupported = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
-var _androidTtsKnownUnavailable = false; // 缓存TTS不可用状态，避免重复检查
-var _ttsInitialized = false; // TTS是否已完成初始化尝试
-
-// 监听Android TTS初始化完成事件（由Java端主动调用）
-window.onAndroidTTSReady = function() {
-  console.log('[onAndroidTTSReady] TTS is ready!');
-  _ttsInitialized = true;
-  _androidTtsKnownUnavailable = false; // 重置，因为现在可用了
-  // 如果还有待播放的语音，继续播放
-  if (_pendingSpeak && !_speakRetryTimer) {
-    console.log('[onAndroidTTSReady] Retrying pending speak...');
-    _doSpeakQuestion();
-  }
-};
-
-// 监听Android TTS初始化失败事件
-window.onAndroidTTSFailed = function() {
-  console.error('[onAndroidTTSFailed] TTS initialization failed!');
-  _androidTtsKnownUnavailable = true;
-  _ttsInitialized = true;
-};
-
-function checkAndroidTTS() {
-  if (_androidTtsKnownUnavailable) return false;
-  try {
-    var available = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
-    if (!available && window.AndroidTTS) {
-      // AndroidTTS存在但isAvailable返回false，可能是还没初始化好
-      // 不标记为永久不可用，让重试逻辑处理
-    } else if (!window.AndroidTTS) {
-      // AndroidTTS不存在，标记为永久不可用
-      _androidTtsKnownUnavailable = true;
-      console.log('[checkAndroidTTS] AndroidTTS not found, marking as permanently unavailable');
-    }
-    return available;
-  } catch(e) { return false; }
-}
 
   var TOTAL_QUESTIONS = 5;
   var MAX_HEARTS = 3;
 
-  // ===== Audio Manager (Web Audio API) =====
+  // ===== Audio Manager =====
   var audioCtx = null;
   
   function getAudioCtx() {
@@ -70,18 +25,11 @@ function checkAndroidTTS() {
     }
     return audioCtx;
   }
-
-  function toggleSound() {
-    isSoundEnabled = !isSoundEnabled;
-    var btn = document.getElementById('sound-toggle');
-    if (btn) btn.textContent = isSoundEnabled ? '🔊' : '🔇';
-    if (!isSoundEnabled) stopBgMusic();
-    else startBgMusic();
-  }
   
   function playCorrectSound() {
     try {
       var ctx = getAudioCtx();
+      if (!ctx) return;
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
@@ -99,6 +47,7 @@ function checkAndroidTTS() {
   function playWrongSound() {
     try {
       var ctx = getAudioCtx();
+      if (!ctx) return;
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
@@ -121,6 +70,7 @@ function checkAndroidTTS() {
   function playBgNote() {
     try {
       var ctx = getAudioCtx();
+      if (!ctx) return;
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
@@ -152,24 +102,20 @@ function checkAndroidTTS() {
 
   // ===== init =====
   function init() {
-    try {
-      DataManager.loadAll();
+    DataManager.loadAll().then(function() {
       updateHomeUI();
       checkReward();
       startBgMusic();
-      initShop();
-      console.log('[init] App initialized successfully');
-    } catch(e) {
-      console.error('[init] Error during initialization:', e);
-      alert('初始化失败: ' + e.message);
-    }
+    }).catch(function(e) {
+      console.error('初始化失败:', e);
+      updateHomeUI();
+    });
   }
 
   function updateHomeUI() {
     var p = GameStorage.getProgress();
     document.getElementById('home-coins').textContent = p.coins;
     document.getElementById('home-hints').textContent = p.hints;
-    updateFreeTimeDisplay();
 
     ['idiom', 'poem', 'english'].forEach(function(sub) {
       var stars = calcTotalStars(p[sub].stars);
@@ -235,7 +181,7 @@ function checkAndroidTTS() {
 
     for (var i = 1; i <= totalLevels; i++) {
       var btn = document.createElement('button');
-      btn.className = 'level-btn';
+      btn.className = 'level-btn fade-in';
       var starCount = stars[i] || 0;
       var starStr = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
       if (i > unlocked) {
@@ -254,14 +200,6 @@ function checkAndroidTTS() {
 
   // ===== start level =====
   function startLevel(level) {
-    // 初始化分数、连击、倒计时
-    score = 0;
-    streak = 0;
-    maxStreak = 0;
-    countdownValue = 30;
-    updateScoreUI();
-    updateStreakUI();
-    updateCountdownUI();
     currentLevel = level;
     currentQIndex = 0;
     hearts = MAX_HEARTS;
@@ -279,9 +217,6 @@ function checkAndroidTTS() {
       return;
     }
     showQuestion();
-    // 重置倒计时
-    countdownValue = 30;
-    updateCountdownUI();
   }
 
   function getSubjectName(sub) {
@@ -289,6 +224,16 @@ function checkAndroidTTS() {
   }
 
   // ===== show question =====
+  function formatQuestionText(text, subject) {
+    // Only add pinyin for Chinese subjects
+    if (subject === 'idiom' || subject === 'poem') {
+      // Remove content in brackets first (like [q3])
+      var cleanText = text.replace(/\[.*?\]/g, '').trim();
+      return PinyinDict.toPinyinHtml(cleanText);
+    }
+    return text;
+  }
+
   function showQuestion() {
     var q = currentQuestions[currentQIndex];
     if (!q) { finishLevel(); return; }
@@ -296,56 +241,11 @@ function checkAndroidTTS() {
     card.classList.remove('fade-in');
     void card.offsetWidth;
     card.classList.add('fade-in');
-    // 处理题目文本：先构建 qText，再统一替换 {{BLANK:n}}
-    var qText = q.q;
+    document.getElementById('question-text').innerHTML = formatQuestionText(q.q, currentSubject);
 
-    // 诗词题目：显示两句 + 答案词变成田字格
-    if (currentSubject === 'poem') {
-      var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
-      if (poemItem && poemItem.content) {
-        for (var i = 0; i < poemItem.content.length; i++) {
-          if (poemItem.content[i].indexOf(q.answer) !== -1) {
-            var lines = [];
-            lines.push(poemItem.content[i]);
-            if (i + 1 < poemItem.content.length) {
-              lines.push(poemItem.content[i + 1]);
-            } else if (i - 1 >= 0) {
-              lines.unshift(poemItem.content[i - 1]);
-            }
-            // 把答案词替换成田字格
-            var answerLen = q.answer.length;
-            var tianziHtml = '';
-            for (var t = 0; t < answerLen; t++) {
-              tianziHtml += '<span class="tianzi-cell"></span>';
-            }
-            var displayLines = lines.map(function(line) {
-              return line.replace(q.answer, tianziHtml);
-            });
-            qText = displayLines.join('<br>');
-            break;
-          }
-        }
-      }
-    }
-
-    // 统一替换 {{BLANK:n}} 为田字方格（诗词两句中的空缺也要替换）
-    qText = qText.replace(/{{BLANK:(\d+)}}/g, function(match, len) {
-      var html = '';
-      for (var i = 0; i < parseInt(len); i++) {
-        html += '<span class="tianzi-cell"></span>';
-      }
-      return html;
-    });
-    document.getElementById('question-text').innerHTML = qText;
-
-    // Show speaker button for English/idiom/poem questions
-    var speakerBtn = document.getElementById("speaker-btn");
-    // 始终显示喇叭按钮
+    var speakerBtn = document.getElementById('speaker-btn');
     if (speakerBtn) {
-      speakerBtn.style.display = 'block';
-      speakerBtn.style.visibility = 'visible';
-      speakerBtn.style.opacity = '1';
-      console.log('[showQuestion] speaker button displayed');
+      speakerBtn.style.display = (currentSubject === 'english' || currentSubject === 'poem' || currentSubject === 'idiom') ? 'block' : 'none';
     }
 
     var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
@@ -366,272 +266,6 @@ function checkAndroidTTS() {
     });
   }
 
-  // ===== speak question =====
-  var _voiceList = [];
-  var _voicesLoaded = false;
-  var _currentUtter = null;
-  var _speakTimeout = null;
-
-  // 初始化语音列表
-  function _loadVoices() {
-    try {
-      _voiceList = window.speechSynthesis.getVoices();
-      if (_voiceList.length > 0) _voicesLoaded = true;
-    } catch(e) {}
-  }
-  if (isSpeechSupported && window.speechSynthesis) {
-    try {
-      window.speechSynthesis.onvoiceschanged = _loadVoices;
-      _loadVoices();
-    } catch(e) { isSpeechSupported = false; }
-  }
-
-  // 等待语音列表加载
-  function _waitForVoices(callback) {
-    if (_voicesLoaded && _voiceList.length > 0) { callback(); return; }
-    // 重试最多 20 次（2 秒）
-    var attempts = 0;
-    function tryAgain() {
-      attempts++;
-      _loadVoices();
-      if ((_voicesLoaded && _voiceList.length > 0) || attempts > 20) { callback(); return; }
-      setTimeout(tryAgain, 100);
-    }
-    tryAgain();
-  }
-
-  function speakQuestion() {
-    console.log("[speakQuestion] currentSubject:", currentSubject, "Q:", currentQuestions[currentQIndex]);
-    var q = currentQuestions[currentQIndex];
-    if (!q) return;
-
-    // 获取要朗读的文本
-    var text = '';
-    var lang = 'zh-CN';
-    if (currentSubject === 'idiom') {
-      var idiomItem = DataManager.getDataBySubject('idiom').find(function(d) { return d.id === q.idiomId; });
-      if (idiomItem) text = idiomItem.word;
-      lang = 'zh-CN';
-    } else if (currentSubject === 'poem') {
-      var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
-      if (poemItem) {
-        for (var i = 0; i < poemItem.content.length; i++) {
-          if (poemItem.content[i].indexOf(q.answer) !== -1) {
-            text = poemItem.content[i];
-            break;
-          }
-        }
-        if (!text) text = poemItem.content[0];
-      }
-      lang = 'zh-CN';
-    } else if (currentSubject === 'english') {
-      var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
-      if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
-      lang = 'en';
-      if (!text) text = q.q || q.answer;
-    }
-    if (!text) text = q.q;
-
-    console.log("[speakQuestion] text:", text, "lang:", lang);
-    console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
-
-    // 直接尝试发音，不再等待Android TTS初始化
-    // 因为Java端会在初始化完成后调用 onAndroidTTSReady，我们使用这个标志
-    if (checkAndroidTTS()) {
-      speakWithAndroidTTS(text, lang);
-    } else if (_ttsInitialized) {
-      // TTS已经尝试初始化但不可用，直接使用Web Speech
-      speakWithWebSpeech(text, lang);
-    } else {
-      // TTS可能还在初始化中，保存参数用于重试
-      _pendingSpeak = { text: text, lang: lang, retries: 0 };
-      _doSpeakQuestion();
-    }
-
-    // 启动倒计时
-    startCountdown();
-  }
-
-  var _pendingSpeak = null;
-  var _speakRetryTimer = null;
-
-  function _doSpeakQuestion() {
-    if (!_pendingSpeak) return;
-    var text = _pendingSpeak.text;
-    var lang = _pendingSpeak.lang;
-
-    // 清除之前的重试定时器
-    if (_speakRetryTimer) { clearTimeout(_speakRetryTimer); _speakRetryTimer = null; }
-
-    if (checkAndroidTTS()) {
-      speakWithAndroidTTS(text, lang);
-    } else {
-      // Android TTS 可能还没初始化好，等待一段时间后重试
-      if (_pendingSpeak.retries < 5) {
-        _pendingSpeak.retries++;
-        console.log("[speakQuestion] AndroidTTS not ready, retry " + _pendingSpeak.retries + "/5 in 300ms");
-        _speakRetryTimer = setTimeout(function() {
-          _doSpeakQuestion();
-        }, 300);
-      } else {
-        // 重试次数用尽，回退到 Web Speech API
-        console.warn("[speakQuestion] AndroidTTS not available after retries, trying Web Speech");
-        speakWithWebSpeech(text, lang);
-      }
-    }
-  }
-
-  // Android 原生 TTS
-  var _androidTtsRetryCount = 0;
-  var _maxAndroidTtsRetries = 3;
-
-  function speakWithAndroidTTS(text, lang) {
-    if (!text) { fallbackToPrompt(''); return; }
-    lang = lang || 'zh-CN';
-    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang, "retry:", _androidTtsRetryCount);
-    try {
-      if (!window.AndroidTTS) {
-        console.error('[speakWithAndroidTTS] AndroidTTS not found!');
-        speakWithWebSpeech(text, lang);
-        return;
-      }
-      window.AndroidTTS.speak(text, lang);
-      console.log('[speakWithAndroidTTS] speak called successfully');
-      // 重置重试计数
-      _androidTtsRetryCount = 0;
-    } catch(e) {
-      console.error('[speakWithAndroidTTS] error:', e);
-      // 重试几次，如果都失败再回退
-      if (_androidTtsRetryCount < _maxAndroidTtsRetries) {
-        _androidTtsRetryCount++;
-        console.log('[speakWithAndroidTTS] Retrying... (' + _androidTtsRetryCount + '/' + _maxAndroidTtsRetries + ')');
-        setTimeout(function() { speakWithAndroidTTS(text, lang); }, 300);
-      } else {
-        console.warn('[speakWithAndroidTTS] All retries failed, fallback to Web Speech');
-        _androidTtsRetryCount = 0;
-        speakWithWebSpeech(text, lang);
-      }
-    }
-  }
-
-  function speakWithWebSpeech(text, lang) {
-    if (!text) { fallbackToPrompt(''); return; }
-    console.log("[speakWithWebSpeech] text:", text, "lang:", lang);
-
-    // 清除之前的超时
-    if (_speakTimeout) { clearTimeout(_speakTimeout); _speakTimeout = null; }
-
-    // 等待语音列表加载完成后播放
-    _waitForVoices(function() {
-      console.log("[speakWithWebSpeech] Available voices (" + _voiceList.length + "):", _voiceList.length > 0 ? _voiceList.map(v => v.name + '(' + v.lang + ')') : 'NONE');
-
-      try {
-        // 先取消当前播放，清理状态
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-        _currentUtter = null;
-
-        var utter = new SpeechSynthesisUtterance(text);
-        utter.lang = lang || 'zh-CN';
-        utter.rate = 0.9;
-        utter.volume = 1.0;
-
-        // 显式选择对应语言的语音
-        if (lang && lang.startsWith('en') && _voiceList.length > 0) {
-          var enVoice = _voiceList.find(function(v) { return v.lang.startsWith('en'); });
-          if (enVoice) {
-            utter.voice = enVoice;
-            console.log("[speakWithWebSpeech] Using English voice:", enVoice.name);
-          } else {
-            console.warn("[speakWithWebSpeech] No English voice found! Available:", _voiceList.map(function(v) { return v.lang; }));
-          }
-        } else if (_voiceList.length === 0) {
-          console.warn("[speakWithWebSpeech] No voices available! Speech may not work.");
-        }
-
-        var hasStarted = false;
-        utter.onstart = function() {
-          hasStarted = true;
-          console.log('[speakWithWebSpeech] started');
-        };
-        utter.onend = function() {
-          console.log('[speakWithWebSpeech] ended');
-          _currentUtter = null;
-        };
-        utter.onerror = function(e) {
-          var err = e.error || (e.type === 'error' ? 'error' : 'unknown');
-          console.error('[speakWithWebSpeech] error:', err);
-          _currentUtter = null;
-          // 如果是 interrupted 或 canceled，不用 fallback
-          if (err !== 'interrupted' && err !== 'canceled') {
-            fallbackToPrompt(text);
-          }
-        };
-
-        _currentUtter = utter;
-        // 确保语音合成恢复（某些浏览器需要）
-        if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume();
-        if (window.speechSynthesis) {
-          window.speechSynthesis.speak(utter);
-          console.log('[speakWithWebSpeech] speak called');
-        } else {
-          console.error('[speakWithWebSpeech] speechSynthesis not available!');
-          fallbackToPrompt(text);
-          return;
-        }
-
-        // 超时保护：如果 3 秒后还没开始播放，重置状态
-        _speakTimeout = setTimeout(function() {
-          if (_currentUtter === utter && !hasStarted) {
-            console.warn('[speakWithWebSpeech] Timeout: speech did not start, resetting');
-            try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(ex) {}
-            _currentUtter = null;
-            _speakTimeout = null;
-            fallbackToPrompt(text);
-          }
-        }, 3000);
-      } catch(e) {
-        console.error('[speakWithWebSpeech] exception:', e);
-        _currentUtter = null;
-        fallbackToPrompt(text);
-      }
-    });
-  }
-
-  function fallbackToPrompt(text) {
-    // 播放提示音（Web Audio API）
-    try {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.5);
-    } catch(e) {
-      console.warn('Web Audio not supported:', e);
-    }
-
-    // 高亮文字
-    var qEl = document.getElementById('question-text');
-    if (qEl) {
-      qEl.style.transition = 'color 0.3s, transform 0.3s';
-      qEl.style.color = '#FF6B6B';
-      qEl.style.transform = 'scale(1.05)';
-      setTimeout(function() {
-        qEl.style.color = '';
-        qEl.style.transform = '';
-      }, 800);
-    }
-
-    console.log('[发音提示] ' + text);
-  }
-
-  
-
   function selectOption(btn, chosen, correct, question) {
     var allBtns = document.querySelectorAll('.option-btn');
     allBtns.forEach(function(b) {
@@ -644,13 +278,6 @@ function checkAndroidTTS() {
     if (chosen === correct) {
       btn.classList.add('correct');
       correctCount++;
-      // 更新分数和连击
-      score += 10 * (streak + 1); // 连击加成
-      streak++;
-      if (streak > maxStreak) maxStreak = streak;
-      updateScoreUI();
-      updateStreakUI();
-      playStreakSound(); // 连击音效
       var itemId = question.idiomId || question.poemId || question.englishId;
       if (itemId) GameStorage.removeWrong(currentSubject, itemId);
       playCorrectSound();
@@ -659,9 +286,6 @@ function checkAndroidTTS() {
       btn.classList.add('wrong');
       btn.classList.add('shake');
       hearts--;
-      // 重置连击
-      streak = 0;
-      updateStreakUI();
       updateHearts();
       var itemId2 = question.idiomId || question.poemId || question.englishId;
       if (itemId2) GameStorage.addWrong(currentSubject, itemId2);
@@ -675,8 +299,6 @@ function checkAndroidTTS() {
   }
 
   function nextQuestion() {
-    // 清除倒计时
-    clearCountdown();
     currentQIndex++;
     if (currentQIndex >= TOTAL_QUESTIONS || currentQIndex >= currentQuestions.length) {
       finishLevel();
@@ -723,8 +345,6 @@ function checkAndroidTTS() {
 
   // ===== pass / fail =====
   function finishLevel() {
-    // 清除倒计时
-    clearCountdown();
     var elapsed = (Date.now() - startTime) / 1000;
     var pct = correctCount / TOTAL_QUESTIONS;
     var stars = 1;
@@ -739,8 +359,6 @@ function checkAndroidTTS() {
   }
 
   function failLevel() {
-    // 清除倒计时
-    clearCountdown();
     showResult(0, 0, false);
   }
 
@@ -749,21 +367,15 @@ function checkAndroidTTS() {
     var title = document.getElementById('result-title');
     var starsEl = document.getElementById('result-stars');
     var msg = document.getElementById('result-msg');
-    var nextBtn = modal.querySelector('.modal-btn:not(.secondary)');
-    var homeBtn = modal.querySelector('.modal-btn.secondary:last-child');
     if (success) {
       title.textContent = '🎉 恭喜过关！';
       starsEl.textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
       msg.textContent = '获得 ' + coins + ' 金币！继续加油！';
-      if (nextBtn) nextBtn.style.display = '';
-      if (homeBtn) homeBtn.style.display = '';
       createConfetti();
     } else {
       title.textContent = '😢 闯关失败';
       starsEl.textContent = '💪';
       msg.textContent = '别灰心，再试一次吧！';
-      if (nextBtn) nextBtn.style.display = 'none';
-      if (homeBtn) homeBtn.style.display = '';
     }
     modal.classList.add('active');
   }
@@ -799,26 +411,13 @@ function checkAndroidTTS() {
   }
 
   function confirmQuit() {
-    console.log('[confirmQuit] called, currentQIndex:', currentQIndex);
-    try {
-      // 清除倒计时
-      try { clearCountdown(); } catch(e) {}
-      // 强制返回首页
-      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
-      var home = document.getElementById('home-screen');
-      if (home) {
-        home.classList.add('active');
-        console.log('[confirmQuit] home-screen activated');
-      }
-      updateHomeUI();
-      // 重置游戏状态
-      currentQuestions = [];
-      currentQIndex = 0;
-    } catch(e) {
-      console.error('[confirmQuit] error:', e);
-      alert('返回失败: ' + e.message);
+    if (currentQIndex > 0) {
+      if (!confirm('确定要退出吗？当前进度会丢失。')) return;
     }
+    showScreen('home-screen');
+    updateHomeUI();
   }
+
   // ===== wrong book =====
   function showWrongBook() {
     showScreen('wrongbook-screen');
@@ -866,299 +465,122 @@ function checkAndroidTTS() {
     setTimeout(function() { renderWrongBook(); }, 300);
   }
 
+  // ===== speak question =====
+  var currentUtter = null;
 
+  function speakQuestion() {
+    if (!('speechSynthesis' in window)) return;
+    var q = currentQuestions[currentQIndex];
+    if (!q) return;
 
-  // ===== 商店 =====
+    // 取消当前播放
+    try { window.speechSynthesis.cancel(); } catch(e) {}
 
-  function showShop() {
-    showScreen('shop-screen');
-    setTimeout(function() {
-      renderShop();
-      updateShopCoins();
-      updateShopFreeTime();
-    }, 50);
-  }
-
-  function hideShop() {
-    showScreen('home-screen');
-    updateHomeUI();
-  }
-
-  function goHome() {
-    document.getElementById('result-modal').classList.remove('active');
-    showScreen('home-screen');
-    updateHomeUI();
-  }
-
-  function updateShopCoins() {
-    var p = GameStorage.getProgress();
-    var el = document.getElementById('shop-coins');
-    if (el) el.textContent = p.coins;
-  }
-
-  function updateShopFreeTime() {
-    var balance = GameStorage.getFreeTimeBalance();
-    var el = document.getElementById('shop-free-time-balance');
-    if (el) el.textContent = '余额：' + balance + ' 分钟';
-    // 更新使用按钮状态
-    var useBtn = document.getElementById('use-free-time-btn');
-    if (useBtn) useBtn.style.display = balance > 0 ? 'block' : 'none';
-  }
-
-  function buyFreeTime() {
-    if (!confirm('确认花费 100 🪙 兑换 1 分钟休闲时间吗？')) {
-      return;
-    }
-    if (GameStorage.spendCoins(100)) {
-      GameStorage.addFreeTime(1);
-      updateShopCoins();
-      updateShopFreeTime();
-      alert('兑换成功！获得1分钟休闲时间 🎉');
-    } else {
-      alert('金币不足！需要100金币才能兑换1分钟休闲时间。');
-    }
-  }
-
-  function showUseFreeTimeModal() {
-    var balance = GameStorage.getFreeTimeBalance();
-    if (balance <= 0) {
-      alert('没有可用的休闲时间！');
-      return;
-    }
-    var modal = document.getElementById('use-free-time-modal');
-    var balEl = document.getElementById('modal-balance');
-    if (balEl) balEl.textContent = balance;
-    var input = document.getElementById('use-minutes-input');
-    if (input) input.value = '';
-    if (modal) modal.classList.add('active');
-  }
-
-  function closeUseFreeTimeModal() {
-    var modal = document.getElementById('use-free-time-modal');
-    if (modal) modal.classList.remove('active');
-  }
-
-  function confirmUseFreeTime() {
-    var input = document.getElementById('use-minutes-input');
-    var minutes = parseInt(input.value) || 0;
-    var balance = GameStorage.getFreeTimeBalance();
-    if (minutes <= 0) {
-      alert('请输入有效的分钟数！');
-      return;
-    }
-    if (minutes > balance) {
-      alert('余额不足！当前余额：' + balance + ' 分钟');
-      return;
-    }
-    if (GameStorage.useFreeTime(minutes)) {
-      closeUseFreeTimeModal();
-      updateShopFreeTime();
-      updateFreeTimeDisplay();
-      alert('已使用 ' + minutes + ' 分钟休闲时间！⏰');
-    }
-  }
-
-  function useFreeTimeQuick(minutes) {
-    var balance = GameStorage.getFreeTimeBalance();
-    if (minutes === 999) minutes = balance; // "全部"按钮
-    if (minutes > balance) {
-      alert('余额不足！当前余额：' + balance + ' 分钟');
-      return;
-    }
-    if (GameStorage.useFreeTime(minutes)) {
-      closeUseFreeTimeModal();
-      updateShopFreeTime();
-      updateFreeTimeDisplay();
-      alert('已使用 ' + minutes + ' 分钟休闲时间！⏰');
-    }
-  }
-
-  function buyGift(itemId) {
-    var gifts = getGiftsInline();
-    var gift = gifts.find(function(g) { return g.id === itemId; });
-    if (!gift) return;
-    if (GameStorage.hasGift(itemId)) {
-      alert('你已经拥有这个礼物了！');
-      return;
-    }
-    if (!confirm('确认花费 ' + gift.price + ' 🪙 购买 ' + gift.icon + ' ' + gift.name + ' 吗？')) {
-      return;
-    }
-    if (GameStorage.spendCoins(gift.price)) {
-      GameStorage.buyGift(itemId);
-      updateShopCoins();
-      renderShop();
-      updateGiftsDisplay();
-      alert('购买成功！获得 ' + gift.icon + ' ' + gift.name + ' 🎉');
-    } else {
-      alert('金币不足！' + gift.name + '需要 ' + gift.price + ' 金币。');
-    }
-  }
-
-  function getGiftsInline() {
-    return [
-      { id: 'gift_001', name: '小星星', icon: '⭐', price: 50, desc: '闪闪发光的小星星' },
-      { id: 'gift_002', name: '小花朵', icon: '🌸', price: 80, desc: '一朵美丽的花朵' },
-      { id: 'gift_003', name: '小皇冠', icon: '👑', price: 120, desc: '小小国王的皇冠' },
-      { id: 'gift_004', name: '小火箭', icon: '🚀', price: 150, desc: '嗖——飞上天啦' },
-      { id: 'gift_005', name: '小蛋糕', icon: '🎂', price: 100, desc: '香甜可口的小蛋糕' },
-      { id: 'gift_006', name: '小气球', icon: '🎈', price: 60, desc: '五颜六色的小气球' },
-      { id: 'gift_007', name: '小奖杯', icon: '🏆', price: 200, desc: '你是第一名！' },
-      { id: 'gift_008', name: '小礼物盒', icon: '🎁', price: 180, desc: '里面藏着惊喜哦' },
-      { id: 'gift_009', name: '小彩虹', icon: '🌈', price: 160, desc: '雨后的美丽彩虹' },
-      { id: 'gift_010', name: '小月亮', icon: '🌙', price: 140, desc: '晚上陪你睡觉' }
-    ];
-  }
-
-  function renderShop() {
-    var container = document.getElementById('shop-items');
-    if (!container) return;
-    renderShopWithData(getGiftsInline(), container);
-  }
-
-  function renderShopWithData(gifts, container) {
-    if (!container) container = document.getElementById('shop-items');
-    if (!container) return;
-    var owned = GameStorage.getOwnedGifts();
-    container.innerHTML = '';
-    gifts.forEach(function(gift) {
-      var owned = GameStorage.hasGift(gift.id);
-      var div = document.createElement('div');
-      div.className = 'shop-item ' + (owned ? 'owned' : '');
-      div.innerHTML =
-        '<div class="shop-item-icon">' + gift.icon + '</div>' +
-        '<div class="shop-item-info">' +
-          '<h4>' + gift.name + '</h4>' +
-          '<p>' + gift.desc + '</p>' +
-        '</div>' +
-        '<div class="shop-item-price">' +
-          (owned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') +
-        '</div>';
-      if (!owned) {
-        (function(g) {
-          div.onclick = function() { buyGift(g.id); };
-        })(gift);
-      }
-      container.appendChild(div);
-    });
-  }
-
-  function updateGiftsDisplay() {
-    var container = document.getElementById('gifts-display');
-    if (!container) return;
-    var owned = GameStorage.getOwnedGifts();
-    if (!owned.length) {
-      container.innerHTML = '';
-      return;
-    }
-    renderGiftsWithData(getGiftsInline(), container, owned);
-  }
-
-  function renderGiftsWithData(gifts, container, owned) {
-    container.innerHTML = '<h3 style="margin:12px 0 8px;font-size:14px;color:#777;">我的礼物 🎁</h3>';
-    var wrap = document.createElement('div');
-    wrap.className = 'gifts-wrap';
-    owned.forEach(function(id) {
-      var gift = gifts.find(function(g) { return g.id === id; });
-      if (!gift) return;
-      var span = document.createElement('span');
-      span.className = 'gift-icon';
-      span.textContent = gift.icon;
-      span.title = gift.name;
-      wrap.appendChild(span);
-    });
-    container.appendChild(wrap);
-  }
-
-  function updateFreeTimeDisplay() {
-    var el = document.getElementById('free-time-display');
-    if (!el) return;
-    var balance = GameStorage.getFreeTimeBalance();
-    if (balance > 0) {
-      el.textContent = '⏰ ' + balance + '分钟';
-      el.style.display = 'block';
-    } else {
-      el.style.display = 'none';
-    }
-  }
-
-  function initShop() {
-    updateGiftsDisplay();
-    updateShopFreeTime();
-  }
-
-
-  // ===== 更新分数UI =====
-  function updateScoreUI() {
-    var el = document.getElementById('quiz-score');
-    if (el) el.textContent = score;
-  }
-
-  // ===== 更新连击UI =====
-  function updateStreakUI() {
-    var el = document.getElementById('quiz-streak');
-    if (el) el.textContent = streak;
-  }
-
-  // ===== 倒计时 =====
-  function startCountdown() {
-    clearCountdown();
-    countdownValue = 30;
-    updateCountdownUI();
-    countdownTimer = setInterval(function() {
-      countdownValue--;
-      updateCountdownUI();
-      var el = document.getElementById('quiz-countdown');
-      if (el && countdownValue <= 10) el.parentElement.classList.add('warning');
-      if (countdownValue <= 0) {
-        clearCountdown();
-        hearts--;
-        streak = 0;
-        updateHearts();
-        updateStreakUI();
-        if (hearts <= 0) {
-          setTimeout(function() { failLevel(); }, 500);
-        } else {
-          setTimeout(nextQuestion, 500);
+    var text = '';
+    var lang = 'zh-CN';
+    if (currentSubject === 'idiom') {
+      var idiomItem = DataManager.getDataBySubject('idiom').find(function(d) { return d.id === q.idiomId; });
+      if (idiomItem) text = idiomItem.word;
+      lang = 'zh-CN';
+    } else if (currentSubject === 'poem') {
+      var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
+      if (poemItem) {
+        for (var i = 0; i < poemItem.content.length; i++) {
+          if (poemItem.content[i].indexOf(q.answer) !== -1) {
+            text = poemItem.content[i];
+            break;
+          }
         }
+        if (!text) text = poemItem.content[0];
       }
-    }, 1000);
-  }
-
-  function clearCountdown() {
-    if (countdownTimer) {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
+      lang = 'zh-CN';
+    } else if (currentSubject === 'english') {
+      var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
+      if (engItem) {
+        text = engItem.word;
+      }
+      lang = 'en-US';
     }
-    var el = document.getElementById('quiz-countdown');
-    if (el) el.parentElement.classList.remove('warning');
+    if (!text) text = q.q;
+
+    // 获取语音列表，如果为空则等待加载后播放
+    var voices = [];
+    try { voices = window.speechSynthesis.getVoices(); } catch(e) {}
+
+    if (voices.length === 0 && 'onvoiceschanged' in window.speechSynthesis) {
+      // 语音尚未加载，等待后重试
+      var retryCount = 0;
+      var maxRetries = 10;
+      var checkVoices = function() {
+        try { voices = window.speechSynthesis.getVoices(); } catch(e) {}
+        if (voices.length > 0 || retryCount >= maxRetries) {
+          doSpeak(text, lang, voices);
+        } else {
+          retryCount++;
+          setTimeout(checkVoices, 100);
+        }
+      };
+      window.speechSynthesis.onvoiceschanged = function() {
+        try { voices = window.speechSynthesis.getVoices(); } catch(e) {}
+        if (voices.length > 0) {
+          doSpeak(text, lang, voices);
+          window.speechSynthesis.onvoiceschanged = null;
+        }
+      };
+      // 触发一次获取
+      try { window.speechSynthesis.getVoices(); } catch(e) {}
+      setTimeout(checkVoices, 100);
+    } else {
+      doSpeak(text, lang, voices);
+    }
   }
 
-  function updateCountdownUI() {
-    var el = document.getElementById('quiz-countdown');
-    if (el) el.textContent = countdownValue;
-  }
-
-  // ===== 连击音效 =====
-  function playStreakSound() {
-    if (!isSoundEnabled || streak < 2) return;
+  function doSpeak(text, lang, voices) {
     try {
-      var ctx = getAudioCtx();
-      if (!ctx) return;
-      var freq = streak >= 5 ? 1046.50 : streak >= 3 ? 783.99 : 659.25;
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.3);
+      var utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      utter.rate = 0.9;
+      utter.volume = 1.0;
+
+      // 选择合适的语音
+      if (voices && voices.length > 0) {
+        var targetVoice = voices.find(function(v) { return v.lang === lang; });
+        if (!targetVoice) {
+          targetVoice = voices.find(function(v) { return v.lang.startsWith(lang.split('-')[0]); });
+        }
+        if (targetVoice) utter.voice = targetVoice;
+      }
+
+      utter.onend = function() { currentUtter = null; };
+      utter.onerror = function(e) {
+        currentUtter = null;
+        if (e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
+          // 尝试用默认语音重新播放
+          try {
+            window.speechSynthesis.cancel();
+            var utter2 = new SpeechSynthesisUtterance(text);
+            utter2.lang = lang;
+            utter2.rate = 0.9;
+            utter2.volume = 1.0;
+            window.speechSynthesis.speak(utter2);
+          } catch(ex) {}
+        }
+      };
+
+      currentUtter = utter;
+      window.speechSynthesis.speak(utter);
     } catch(e) {
-      console.warn('Streak sound error:', e);
+      currentUtter = null;
     }
+  }
+
+  // ===== sound toggle =====
+  function toggleSound() {
+    isSoundEnabled = !isSoundEnabled;
+    var btn = document.getElementById('sound-toggle');
+    if (btn) btn.textContent = isSoundEnabled ? '🔊' : '🔇';
+    if (!isSoundEnabled) stopBgMusic();
+    else startBgMusic();
   }
 
   // ===== public API =====
@@ -1175,18 +597,7 @@ function checkAndroidTTS() {
     removeWrong: removeWrong,
     closeReward: closeReward,
     toggleSound: toggleSound,
-    speakQuestion: speakQuestion,
-    showShop: showShop,
-    hideShop: hideShop,
-    goHome: goHome,
-    updateGiftsDisplay: updateGiftsDisplay,
-    initShop: initShop,
-    buyFreeTime: buyFreeTime,
-    showUseFreeTimeModal: showUseFreeTimeModal,
-    closeUseFreeTimeModal: closeUseFreeTimeModal,
-    confirmUseFreeTime: confirmUseFreeTime,
-    useFreeTimeQuick: useFreeTimeQuick,
-    updateShopFreeTime: updateShopFreeTime
+    speakQuestion: speakQuestion
   };
 })();
 
