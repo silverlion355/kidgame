@@ -785,6 +785,24 @@ body {
   transform: translateY(-50%);
 }
 
+/* ========== 拼音标注样式 ========== */
+.question-text ruby {
+  display: inline ruby;
+  position: relative;
+}
+.question-text ruby rb {
+  display: inline-block;
+  text-align: center;
+}
+.question-text ruby rt {
+  display: inline-block;
+  font-size: 0.45em;
+  color: #888;
+  text-align: center;
+  line-height: 1.2;
+  -webkit-text-size-adjust: none;
+}
+
 /* ========== 萌娃商店 ========== */
 #shop-screen {
   padding-bottom: 20px;

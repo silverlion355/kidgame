@@ -150,6 +150,33 @@ function checkAndroidTTS() {
     }
   }
 
+  // 汉字拼音标注辅助函数
+  function addPinyinToText(text) {
+    if (!text || typeof PinyinDict === 'undefined') return text;
+    // 保留 HTML 标签，只对纯文本添加拼音
+    var result = '';
+    var inTag = false;
+    var tagContent = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (ch === '<') { inTag = true; tagContent = ch; continue; }
+      if (ch === '>') { inTag = false; tagContent += ch; result += tagContent; tagContent = ''; continue; }
+      if (inTag) { tagContent += ch; continue; }
+      // 检查是否是汉字
+      if (/[一-龥]/.test(ch)) {
+        var py = PinyinDict.getPinyin(ch);
+        if (py) {
+          result += '<ruby><rb>' + ch + '</rb><rt>' + py + '</rt></ruby>';
+        } else {
+          result += ch;
+        }
+      } else {
+        result += ch;
+      }
+    }
+    return result;
+  }
+
   // ===== init =====
   function init() {
     try {
@@ -336,6 +363,16 @@ function checkAndroidTTS() {
       }
       return html;
     });
+
+    // 成语和诗词添加拼音标注
+    if (currentSubject === 'idiom' || currentSubject === 'poem') {
+      qText = addPinyinToText(qText);
+    }
+    // 英语题目如果有中文也添加拼音
+    else if (currentSubject === 'english' && q.q && /[一-龥]/.test(q.q)) {
+      qText = addPinyinToText(qText);
+    }
+
     document.getElementById('question-text').innerHTML = qText;
 
     // Show speaker button for English/idiom/poem questions
