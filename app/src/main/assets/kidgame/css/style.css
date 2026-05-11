@@ -787,20 +787,26 @@ body {
 
 /* ========== 拼音标注样式 ========== */
 .question-text ruby {
-  display: inline ruby;
-  position: relative;
+  display: inline-flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  vertical-align: baseline;
+  line-height: 1;
+  margin: 0 1px;
 }
 .question-text ruby rb {
   display: inline-block;
-  text-align: center;
+  font-size: 22px;
+  line-height: 1.2;
 }
 .question-text ruby rt {
   display: inline-block;
-  font-size: 0.45em;
+  font-size: 11px;
   color: #888;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.1;
   -webkit-text-size-adjust: none;
+  margin-bottom: 2px;
 }
 
 /* ========== 萌娃商店 ========== */
