@@ -18,8 +18,44 @@ const App = (function () {
   var TOTAL_QUESTIONS = 5; // 保持不变
   var MAX_HEARTS = 3; // 保持不变
   var isSoundEnabled = true;
-  var isSpeechSupported = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
-var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+  var isSpeechSupported = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+var _androidTtsKnownUnavailable = false; // 缓存TTS不可用状态，避免重复检查
+var _ttsInitialized = false; // TTS是否已完成初始化尝试
+
+// 监听Android TTS初始化完成事件（由Java端主动调用）
+window.onAndroidTTSReady = function() {
+  console.log('[onAndroidTTSReady] TTS is ready!');
+  _ttsInitialized = true;
+  _androidTtsKnownUnavailable = false; // 重置，因为现在可用了
+  // 如果还有待播放的语音，继续播放
+  if (_pendingSpeak && !_speakRetryTimer) {
+    console.log('[onAndroidTTSReady] Retrying pending speak...');
+    _doSpeakQuestion();
+  }
+};
+
+// 监听Android TTS初始化失败事件
+window.onAndroidTTSFailed = function() {
+  console.error('[onAndroidTTSFailed] TTS initialization failed!');
+  _androidTtsKnownUnavailable = true;
+  _ttsInitialized = true;
+};
+
+function checkAndroidTTS() {
+  if (_androidTtsKnownUnavailable) return false;
+  try {
+    var available = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    if (!available && window.AndroidTTS) {
+      // AndroidTTS存在但isAvailable返回false，可能是还没初始化好
+      // 不标记为永久不可用，让重试逻辑处理
+    } else if (!window.AndroidTTS) {
+      // AndroidTTS不存在，标记为永久不可用
+      _androidTtsKnownUnavailable = true;
+      console.log('[checkAndroidTTS] AndroidTTS not found, marking as permanently unavailable');
+    }
+    return available;
+  } catch(e) { return false; }
+}
 
   var TOTAL_QUESTIONS = 5;
   var MAX_HEARTS = 3;
@@ -116,11 +152,17 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
   // ===== init =====
   function init() {
-    DataManager.loadAll();
-    updateHomeUI();
-    checkReward();
-    startBgMusic();
-    initShop();
+    try {
+      DataManager.loadAll();
+      updateHomeUI();
+      checkReward();
+      startBgMusic();
+      initShop();
+      console.log('[init] App initialized successfully');
+    } catch(e) {
+      console.error('[init] Error during initialization:', e);
+      alert('初始化失败: ' + e.message);
+    }
   }
 
   function updateHomeUI() {
@@ -247,15 +289,6 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   // ===== show question =====
-  // 汉字拼音标注辅助函数
-  function addPinyinToText(text) {
-    if (!text || typeof PinyinDict === 'undefined') return text;
-    // 对连续汉字添加拼音
-    return text.replace(/[一-龥]+/g, function(match) {
-      return PinyinDict.toPinyinHtml ? PinyinDict.toPinyinHtml(match) : match;
-    });
-  }
-
   function showQuestion() {
     var q = currentQuestions[currentQIndex];
     if (!q) { finishLevel(); return; }
@@ -266,21 +299,29 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
     // 处理题目文本：先构建 qText，再统一替换 {{BLANK:n}}
     var qText = q.q;
 
-    // 诗词题目：显示两句（当前句和下一句）
+    // 诗词题目：显示两句 + 答案词变成田字格
     if (currentSubject === 'poem') {
       var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
       if (poemItem && poemItem.content) {
         for (var i = 0; i < poemItem.content.length; i++) {
           if (poemItem.content[i].indexOf(q.answer) !== -1) {
-            var lines = [poemItem.content[i]];
-            // 添加下一句（如果有）
+            var lines = [];
+            lines.push(poemItem.content[i]);
             if (i + 1 < poemItem.content.length) {
               lines.push(poemItem.content[i + 1]);
             } else if (i - 1 >= 0) {
-              // 如果是最后一句，显示前一句和当前句
               lines.unshift(poemItem.content[i - 1]);
             }
-            qText = lines.join('<br>');
+            // 把答案词替换成田字格
+            var answerLen = q.answer.length;
+            var tianziHtml = '';
+            for (var t = 0; t < answerLen; t++) {
+              tianziHtml += '<span class="tianzi-cell"></span>';
+            }
+            var displayLines = lines.map(function(line) {
+              return line.replace(q.answer, tianziHtml);
+            });
+            qText = displayLines.join('<br>');
             break;
           }
         }
@@ -295,64 +336,34 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       }
       return html;
     });
-
-    // 成语和诗词添加拼音标注（拼音只在非空白的汉字上显示）
-    if (currentSubject === 'idiom' || currentSubject === 'poem') {
-      qText = addPinyinToText(qText);
-    }
-    // 英语题目如果是中文也添加拼音
-    else if (currentSubject === 'english' && q.q && /[一-龥]/.test(q.q)) {
-      qText = addPinyinToText(qText);
-    }
-
     document.getElementById('question-text').innerHTML = qText;
 
     // Show speaker button for English/idiom/poem questions
     var speakerBtn = document.getElementById("speaker-btn");
-      if (speakerBtn) {
-        // 始终显示喇叭按钮（用户反馈看不到）
-        speakerBtn.style.display = 'block';
-      }
+    // 始终显示喇叭按钮
+    if (speakerBtn) {
+      speakerBtn.style.display = 'block';
+      speakerBtn.style.visibility = 'visible';
+      speakerBtn.style.opacity = '1';
+      console.log('[showQuestion] speaker button displayed');
+    }
 
     var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
     document.getElementById('quiz-progress').style.width = progress + '%';
     var optionsC = document.getElementById('options-container');
     optionsC.style.display = 'flex';
-    optionsC.style.flexDirection = 'column';
     optionsC.innerHTML = '';
     var labels = ['A', 'B', 'C', 'D'];
-
-    // 使用两列布局：每两个选项一行
-    for (var i = 0; i < q.options.length; i += 2) {
-      var rowDiv = document.createElement('div');
-      rowDiv.className = 'options-row';
-
-      // 第一个选项
-      var opt1 = q.options[i];
-      var btn1 = document.createElement('button');
-      btn1.className = 'option-btn slide-in';
-      btn1.style.animationDelay = (i * 0.1) + 's';
-      btn1.innerHTML = '<span class="option-label">' + labels[i] + '</span><span>' + opt1 + '</span>';
+    q.options.forEach(function(opt, i) {
+      var btn = document.createElement('button');
+      btn.className = 'option-btn slide-in';
+      btn.style.animationDelay = (i * 0.1) + 's';
+      btn.innerHTML = '<span class="option-label">' + labels[i] + '</span><span>' + opt + '</span>';
       (function(b, chosen, correct, question) {
         b.onclick = function() { selectOption(b, chosen, correct, question); };
-      })(btn1, opt1, q.answer, q);
-      rowDiv.appendChild(btn1);
-
-      // 第二个选项（如果存在）
-      if (i + 1 < q.options.length) {
-        var opt2 = q.options[i + 1];
-        var btn2 = document.createElement('button');
-        btn2.className = 'option-btn slide-in';
-        btn2.style.animationDelay = ((i + 1) * 0.1) + 's';
-        btn2.innerHTML = '<span class="option-label">' + labels[i + 1] + '</span><span>' + opt2 + '</span>';
-        (function(b, chosen, correct, question) {
-          b.onclick = function() { selectOption(b, chosen, correct, question); };
-        })(btn2, opt2, q.answer, q);
-        rowDiv.appendChild(btn2);
-      }
-
-      optionsC.appendChild(rowDiv);
-    }
+      })(btn, opt, q.answer, q);
+      optionsC.appendChild(btn);
+    });
   }
 
   // ===== speak question =====
@@ -368,9 +379,11 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       if (_voiceList.length > 0) _voicesLoaded = true;
     } catch(e) {}
   }
-  if (isSpeechSupported) {
-    window.speechSynthesis.onvoiceschanged = _loadVoices;
-    _loadVoices();
+  if (isSpeechSupported && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.onvoiceschanged = _loadVoices;
+      _loadVoices();
+    } catch(e) { isSpeechSupported = false; }
   }
 
   // 等待语音列表加载
@@ -412,36 +425,92 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
       }
       lang = 'zh-CN';
     } else if (currentSubject === 'english') {
-      // 英语题目：读中文释义，避免英文语音问题
       var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
-      if (engItem) text = engItem.meaning_cn || engItem.word;
-      lang = 'zh-CN';
+      if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
+      lang = 'en';
       if (!text) text = q.q || q.answer;
     }
     if (!text) text = q.q;
 
-    // 优先使用 Android 原生 TTS，否则回退到 Web Speech API
-    if (isAndroidTTSAvailable) {
+    console.log("[speakQuestion] text:", text, "lang:", lang);
+    console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
+
+    // 直接尝试发音，不再等待Android TTS初始化
+    // 因为Java端会在初始化完成后调用 onAndroidTTSReady，我们使用这个标志
+    if (checkAndroidTTS()) {
       speakWithAndroidTTS(text, lang);
-    } else {
+    } else if (_ttsInitialized) {
+      // TTS已经尝试初始化但不可用，直接使用Web Speech
       speakWithWebSpeech(text, lang);
+    } else {
+      // TTS可能还在初始化中，保存参数用于重试
+      _pendingSpeak = { text: text, lang: lang, retries: 0 };
+      _doSpeakQuestion();
     }
 
     // 启动倒计时
     startCountdown();
   }
 
+  var _pendingSpeak = null;
+  var _speakRetryTimer = null;
+
+  function _doSpeakQuestion() {
+    if (!_pendingSpeak) return;
+    var text = _pendingSpeak.text;
+    var lang = _pendingSpeak.lang;
+
+    // 清除之前的重试定时器
+    if (_speakRetryTimer) { clearTimeout(_speakRetryTimer); _speakRetryTimer = null; }
+
+    if (checkAndroidTTS()) {
+      speakWithAndroidTTS(text, lang);
+    } else {
+      // Android TTS 可能还没初始化好，等待一段时间后重试
+      if (_pendingSpeak.retries < 5) {
+        _pendingSpeak.retries++;
+        console.log("[speakQuestion] AndroidTTS not ready, retry " + _pendingSpeak.retries + "/5 in 300ms");
+        _speakRetryTimer = setTimeout(function() {
+          _doSpeakQuestion();
+        }, 300);
+      } else {
+        // 重试次数用尽，回退到 Web Speech API
+        console.warn("[speakQuestion] AndroidTTS not available after retries, trying Web Speech");
+        speakWithWebSpeech(text, lang);
+      }
+    }
+  }
+
   // Android 原生 TTS
+  var _androidTtsRetryCount = 0;
+  var _maxAndroidTtsRetries = 3;
+
   function speakWithAndroidTTS(text, lang) {
     if (!text) { fallbackToPrompt(''); return; }
-    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang);
+    lang = lang || 'zh-CN';
+    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang, "retry:", _androidTtsRetryCount);
     try {
-      window.AndroidTTS.speak(text, lang || 'zh-CN');
-      console.log('[speakWithAndroidTTS] speak called');
+      if (!window.AndroidTTS) {
+        console.error('[speakWithAndroidTTS] AndroidTTS not found!');
+        speakWithWebSpeech(text, lang);
+        return;
+      }
+      window.AndroidTTS.speak(text, lang);
+      console.log('[speakWithAndroidTTS] speak called successfully');
+      // 重置重试计数
+      _androidTtsRetryCount = 0;
     } catch(e) {
       console.error('[speakWithAndroidTTS] error:', e);
-      // 回退到 Web Speech API
-      speakWithWebSpeech(text, lang);
+      // 重试几次，如果都失败再回退
+      if (_androidTtsRetryCount < _maxAndroidTtsRetries) {
+        _androidTtsRetryCount++;
+        console.log('[speakWithAndroidTTS] Retrying... (' + _androidTtsRetryCount + '/' + _maxAndroidTtsRetries + ')');
+        setTimeout(function() { speakWithAndroidTTS(text, lang); }, 300);
+      } else {
+        console.warn('[speakWithAndroidTTS] All retries failed, fallback to Web Speech');
+        _androidTtsRetryCount = 0;
+        speakWithWebSpeech(text, lang);
+      }
     }
   }
 
@@ -454,20 +523,20 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
 
     // 等待语音列表加载完成后播放
     _waitForVoices(function() {
-      console.log("[speakWithWebSpeech] Available voices:", _voiceList.map(v => v.name + '(' + v.lang + ')'));
+      console.log("[speakWithWebSpeech] Available voices (" + _voiceList.length + "):", _voiceList.length > 0 ? _voiceList.map(v => v.name + '(' + v.lang + ')') : 'NONE');
 
       try {
         // 先取消当前播放，清理状态
-        window.speechSynthesis.cancel();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         _currentUtter = null;
 
         var utter = new SpeechSynthesisUtterance(text);
         utter.lang = lang || 'zh-CN';
-        utter.rate = 0.8;
+        utter.rate = 0.9;
         utter.volume = 1.0;
 
         // 显式选择对应语言的语音
-        if (lang && lang.startsWith('en')) {
+        if (lang && lang.startsWith('en') && _voiceList.length > 0) {
           var enVoice = _voiceList.find(function(v) { return v.lang.startsWith('en'); });
           if (enVoice) {
             utter.voice = enVoice;
@@ -475,6 +544,8 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
           } else {
             console.warn("[speakWithWebSpeech] No English voice found! Available:", _voiceList.map(function(v) { return v.lang; }));
           }
+        } else if (_voiceList.length === 0) {
+          console.warn("[speakWithWebSpeech] No voices available! Speech may not work.");
         }
 
         var hasStarted = false;
@@ -487,27 +558,35 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
           _currentUtter = null;
         };
         utter.onerror = function(e) {
-          console.error('[speakWithWebSpeech] error:', e.error || e);
+          var err = e.error || (e.type === 'error' ? 'error' : 'unknown');
+          console.error('[speakWithWebSpeech] error:', err);
           _currentUtter = null;
           // 如果是 interrupted 或 canceled，不用 fallback
-          if (e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
+          if (err !== 'interrupted' && err !== 'canceled') {
             fallbackToPrompt(text);
           }
         };
 
         _currentUtter = utter;
         // 确保语音合成恢复（某些浏览器需要）
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-        window.speechSynthesis.speak(utter);
-        console.log('[speakWithWebSpeech] speak called');
+        if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume();
+        if (window.speechSynthesis) {
+          window.speechSynthesis.speak(utter);
+          console.log('[speakWithWebSpeech] speak called');
+        } else {
+          console.error('[speakWithWebSpeech] speechSynthesis not available!');
+          fallbackToPrompt(text);
+          return;
+        }
 
         // 超时保护：如果 3 秒后还没开始播放，重置状态
         _speakTimeout = setTimeout(function() {
           if (_currentUtter === utter && !hasStarted) {
             console.warn('[speakWithWebSpeech] Timeout: speech did not start, resetting');
-            try { window.speechSynthesis.cancel(); } catch(ex) {}
+            try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(ex) {}
             _currentUtter = null;
             _speakTimeout = null;
+            fallbackToPrompt(text);
           }
         }, 3000);
       } catch(e) {
@@ -720,12 +799,26 @@ var isAndroidTTSAvailable = !!(window.AndroidTTS && window.AndroidTTS.isAvailabl
   }
 
   function confirmQuit() {
-    // 直接返回首页
-    try { clearCountdown(); } catch(e) {}
-    showScreen('home-screen');
-    updateHomeUI();
+    console.log('[confirmQuit] called, currentQIndex:', currentQIndex);
+    try {
+      // 清除倒计时
+      try { clearCountdown(); } catch(e) {}
+      // 强制返回首页
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      var home = document.getElementById('home-screen');
+      if (home) {
+        home.classList.add('active');
+        console.log('[confirmQuit] home-screen activated');
+      }
+      updateHomeUI();
+      // 重置游戏状态
+      currentQuestions = [];
+      currentQIndex = 0;
+    } catch(e) {
+      console.error('[confirmQuit] error:', e);
+      alert('返回失败: ' + e.message);
+    }
   }
-
   // ===== wrong book =====
   function showWrongBook() {
     showScreen('wrongbook-screen');

@@ -368,46 +368,28 @@ body {
   font-weight: 700;
 }
 
-/* 选项 - 两列布局 */
+/* 选项 */
 .options {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
-.options-row {
-  display: flex;
-  gap: 10px;
-}
-
 .option-btn {
-  flex: 1;
-  padding: 12px 10px;
+  padding: 16px 18px;
   border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
-  font-size: 14px;
+  font-size: 16px;
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-weight: 600;
   color: var(--text);
-  min-width: 0;
-}
-
-/* 拼音标注样式 */
-.question-text ruby rb {
-  font-weight: 700;
-}
-.question-text ruby rt {
-  font-size: 0.45em;
-  color: #888;
-  font-weight: 500;
-  letter-spacing: 0.5px;
 }
 
 .option-btn:active { transform: scale(0.98); }
