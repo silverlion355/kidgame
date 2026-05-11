@@ -273,17 +273,44 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  background: var(--card);
-  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--card) 0%, #F0F9FF 100%);
+  padding: 10px 16px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 2px solid var(--border);
+  border: none;
+  gap: 8px;
 }
 
+.quiz-header .btn-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.quiz-header .btn-back:hover { border-color: var(--blue); background: #F0F9FF; }
+.quiz-header .btn-back:active { transform: scale(0.95); }
+
 .quiz-header .level-info {
-  font-size: 14px;
-  color: var(--text-light);
-  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 800;
+  flex: 1;
+  text-align: center;
+}
+
+.quiz-header .hearts {
+  flex-shrink: 0;
+  font-size: 20px;
+  letter-spacing: 2px;
 }
 
 .hearts {
@@ -341,45 +368,46 @@ body {
   font-weight: 700;
 }
 
-/* 拼音标注样式 */
-.question-text ruby {
-  ruby-position: over;
-}
-.question-text rb {
-  display: inline-block;
-  font-weight: 700;
-}
-.question-text rt {
-  font-size: 0.5em;
-  color: var(--text-light);
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-/* 选项 */
+/* 选项 - 两列布局 */
 .options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 20px;
 }
 
+.options-row {
+  display: flex;
+  gap: 10px;
+}
+
 .option-btn {
-  padding: 16px 18px;
+  flex: 1;
+  padding: 12px 10px;
   border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
-  font-size: 16px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   font-weight: 600;
   color: var(--text);
+  min-width: 0;
+}
+
+/* 拼音标注样式 */
+.question-text ruby rb {
+  font-weight: 700;
+}
+.question-text ruby rt {
+  font-size: 0.45em;
+  color: #888;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 .option-btn:active { transform: scale(0.98); }
@@ -488,6 +516,21 @@ body {
 .modal-btn:hover { transform: translateY(-2px); }
 .modal-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
 .modal-btn.secondary { background: #E0E0E0; color: var(--text); border-bottom-color: #BDBDBD; }
+
+#use-minutes-input {
+  width: 80%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid #E0E0E0;
+  font-size: 16px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#use-minutes-input:focus {
+  border-color: var(--blue);
+}
 
 /* ========== 错题本 ========== */
 
@@ -726,3 +769,338 @@ body {
 /* ========== 选中文本颜色 ========== */
 
 ::selection { background: rgba(88,204,2,0.2); color: var(--text); }
+
+/* ========== 田字方格 ========== */
+.tianzi-cell {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #555;
+  position: relative;
+  background: #fff;
+  margin: 0 3px;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.tianzi-cell:before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  border-left: 1px dashed #ccc;
+  transform: translateX(-50%);
+}
+
+.tianzi-cell:after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  border-top: 1px dashed #ccc;
+  transform: translateY(-50%);
+}
+
+/* ========== 萌娃商店 ========== */
+#shop-screen {
+  padding-bottom: 20px;
+}
+
+.shop-coins {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  background: var(--yellow-light);
+  padding: 8px 16px;
+  border-radius: 50px;
+  font-weight: 800;
+  color: #F39C12;
+  font-size: 15px;
+  border: 2px solid #FFE082;
+  margin: 12px auto;
+  width: fit-content;
+}
+
+.shop-section {
+  margin: 16px 0;
+}
+
+.shop-section h3 {
+  font-size: 16px;
+  margin: 12px 0 8px;
+  padding-left: 4px;
+}
+
+.free-time-balance {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-light);
+  background: #E8F5E9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.shop-item:hover {
+  border-color: var(--blue);
+  transform: translateY(-1px);
+}
+
+.shop-item.owned {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shop-item-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.shop-item-info {
+  flex: 1;
+}
+
+.shop-item-info h4 {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+
+.shop-item-info p {
+  font-size: 12px;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.shop-item-price {
+  font-weight: 700;
+  color: #F39C12;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.owned-badge {
+  background: var(--green-light);
+  color: var(--green-dark);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shop-items-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ========== 礼物展示 ========== */
+#gifts-display {
+  margin: 12px 0;
+}
+
+.gifts-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.gift-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFF3E0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  border: 2px solid #FFE0B2;
+}
+
+.gift-icon:hover {
+  transform: scale(1.1);
+}
+
+/* ========== 休闲时间显示 ========== */
+#free-time-display {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* ========= 答题统计区 ========= */
+.quiz-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  margin: 8px 0;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.streak-display {
+  color: #FF6B6B;
+  animation: streakPulse 0.5s ease;
+}
+
+@keyframes streakPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.countdown-display {
+  color: var(--blue);
+}
+
+.countdown-display.warning {
+  color: var(--red);
+  animation: countdownFlash 0.5s infinite;
+}
+
+@keyframes countdownFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 选项按钮加大 */
+.option-btn {
+  font-size: 20px !important;
+  padding: 18px 20px !important;
+  min-height: 60px;
+}
+
+.option-btn span:first-child {
+  font-size: 28px !important;
+}
+
+/* 题目文字加大 */
+#question-text {
+  font-size: 24px !important;
+  line-height: 1.6 !important;
+}
+
+/* 音效反馈动画 */
+.correct-flash {
+  animation: correctFlash 0.6s ease;
+}
+
+@keyframes correctFlash {
+  0% { background: var(--green-light); transform: scale(1); }
+  50% { background: var(--green); transform: scale(1.02); }
+  100% { background: var(--card); transform: scale(1); }
+}
+
+.wrong-flash {
+  animation: wrongFlash 0.6s ease;
+}
+
+@keyframes wrongFlash {
+  0% { background: var(--red-light); transform: scale(1); }
+  50% { background: var(--red); transform: scale(0.98); }
+  100% { background: var(--card); transform: scale(1); }
+}
+
+/* ========= 儿童友好优化 ========= */
+
+/* 更大的标题和文字 */
+.home-title h1 { font-size: 42px !important; }
+.home-title p { font-size: 18px !important; }
+.subject-info h3 { font-size: 20px !important; }
+.subject-info p { font-size: 14px !important; }
+
+/* 更大的按钮 */
+.subject-card { padding: 24px !important; margin-bottom: 20px !important; }
+.btn-back { width: 48px !important; height: 48px !important; font-size: 24px !important; }
+
+/* 更鲜艳的卡片颜色 */
+.subject-card:nth-child(2) { background: linear-gradient(135deg, #FFE0E0, #FFF5F5) !important; }
+.subject-card:nth-child(3) { background: linear-gradient(135deg, #C8E6C9, #E8F5E9) !important; }
+.subject-card:nth-child(4) { background: linear-gradient(135deg, #BBDEFB, #E3F2FD) !important; }
+.subject-card:nth-child(5) { background: linear-gradient(135deg, #FFF3E0, #FFF8E1) !important; }
+.subject-card:nth-child(6) { background: linear-gradient(135deg, #FCE4EC, #F8BBD0) !important; }
+
+/* 更大的提示按钮 */
+.hint-btn { padding: 16px 24px !important; font-size: 18px !important; border-radius: 50px !important; }
+
+/* 更大的音效按钮 */
+.sound-toggle { width: 52px !important; height: 52px !important; font-size: 24px !important; }
+
+/* 结果弹窗更大更友好 */
+.modal { padding: 32px !important; border-radius: 24px !important; }
+.modal h2 { font-size: 28px !important; }
+.modal p { font-size: 18px !important; }
+.modal-btn { padding: 16px 36px !important; font-size: 18px !important; }
+
+/* 连击特效 */
+.streak-display.active { animation: streakBounce 0.5s ease; color: #FF6B6B; font-weight: 900; }
+@keyframes streakBounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 分数增加动画 */
+.score-increase {
+  position: absolute;
+  color: var(--green);
+  font-size: 20px;
+  font-weight: 900;
+  animation: scoreFloat 1s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes scoreFloat {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+/* 喇叭按钮行 */
+.speaker-row {
+  text-align: center;
+  margin: 12px 0;
+}
+.speaker-row .speaker-btn {
+  display: inline-block;
+  margin: 0 auto;
+}
