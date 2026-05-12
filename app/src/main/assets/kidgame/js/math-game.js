@@ -4,6 +4,7 @@
 
 const MathGame = (function() {
   var currentGame = null;
+  var currentQuestion = null;
   var score = 0;
   var questionCount = 0;
   var correctCount = 0;
@@ -304,35 +305,32 @@ const MathGame = (function() {
       document.getElementById('math-menu').style.display = 'none';
       document.getElementById('math-game-area').style.display = 'block';
 
-      nextQuestion();
+      currentQuestion = generateQuestion();
+      document.getElementById('math-game-area').innerHTML = renderGameArea(currentQuestion);
     },
+
+    function generateQuestion() {
+    if (currentGame === 'speed') return generateSpeedMath();
+    if (currentGame === 'pattern') return generatePattern();
+    if (currentGame === '24points') return generate24Points();
+    return generateSpeedMath();
+  }
 
     nextQuestion: function() {
       questionCount++;
-      var question;
-
-      if (currentGame === 'speed') {
-        question = generateSpeedMath();
-      } else if (currentGame === 'pattern') {
-        question = generatePattern();
-      } else if (currentGame === '24points') {
-        question = generate24Points();
-      }
-
-      document.getElementById('math-game-area').innerHTML = renderGameArea(question);
+      currentQuestion = generateQuestion();
+      document.getElementById('math-game-area').innerHTML = renderGameArea(currentQuestion);
     },
 
     checkAnswer: function(selected) {
-      var currentQ = currentGame === 'speed' ? generateSpeedMath() :
-                      currentGame === 'pattern' ? generatePattern() : generate24Points();
-
       var correct = false;
+      var answer = currentQuestion ? currentQuestion.answer : '';
       // 简单比较
-      if (String(selected) === String(currentQ.answer)) {
+      if (String(selected) === String(answer)) {
         correct = true;
       } else if (currentGame === '24points') {
         // 24点特殊处理
-        correct = String(selected).indexOf('24') !== -1 || selected === currentQ.answer;
+        correct = String(selected).indexOf('24') !== -1 || selected === answer;
       }
 
       if (correct) {
@@ -346,7 +344,7 @@ const MathGame = (function() {
       if (questionCount >= TOTAL_QUESTIONS) {
         document.getElementById('math-game-area').innerHTML = renderResult();
       } else {
-        nextQuestion();
+        MathGame.nextQuestion();
       }
     },
 
