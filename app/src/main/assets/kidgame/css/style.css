@@ -785,67 +785,91 @@ body {
   transform: translateY(-50%);
 }
 
-/* ========== 拼音标注样式（已优化尺寸和对齐）========== */
+/* ========== 拼音标注样式（统一行高完美对齐）========== */
 .question-text {
   font-size: 32px !important;
-  line-height: 2.2 !important;
+  line-height: 1.5 !important;
   text-align: center;
   color: var(--text);
   font-weight: 700;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-items: flex-start;
-  gap: 4px 6px;
+  align-items: baseline;
+  gap: 0;
+  padding: 8px 0;
 }
 
+/* ruby拼音标注 - 底部对齐baseline */
 .question-text ruby {
   display: inline-flex;
   flex-direction: column-reverse;
   align-items: center;
-  vertical-align: top;
+  vertical-align: baseline;
   line-height: 1;
-  margin: 0 2px;
+  margin: 0 1px;
+  position: relative;
+  top: -2px; /* 拼音与汉字距离微调 */
 }
 .question-text ruby rb {
-  display: inline-block;
+  display: block;
   font-size: 36px;
-  line-height: 1.1;
+  line-height: 1.2;
   font-weight: 800;
   text-align: center;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 .question-text ruby rt {
   display: block;
-  font-size: 16px;
-  color: #555;
+  font-size: 14px;
+  color: #666;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1;
   -webkit-text-size-adjust: none;
-  margin-bottom: 2px;
-  font-weight: 600;
-  min-width: 20px;
+  margin-bottom: 1px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
-/* 田字格与拼音对齐 */
+/* 田字格 - 与拼音汉字高度对齐 */
 .question-text .tianzi-cell {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  vertical-align: top;
+  display: inline-block;
   width: 40px;
-  height: 40px;
+  height: 42px;
   border: 2px solid #555;
   background: #fff;
-  margin: 0 2px;
+  margin: 0 1px;
+  vertical-align: baseline;
   box-sizing: border-box;
   position: relative;
 }
 
-/* 保持行内其他元素对齐 */
-.question-text > span,
-.question-text > br {
-  display: inline-block;
-  vertical-align: top;
+/* 田字格内部线条 */
+.question-text .tianzi-cell::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  border-left: 1px dashed #ccc;
+  transform: translateX(-50%);
+}
+.question-text .tianzi-cell::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  height: 1px;
+  border-top: 1px dashed #ccc;
+  transform: translateY(-50%);
+}
+
+/* 纯文字（无拼音）与其他元素基线对齐 */
+.question-text span:not(.tianzi-cell) {
+  display: inline;
+  vertical-align: baseline;
 }
 
 /* ========== 萌娃商店 ========== */
