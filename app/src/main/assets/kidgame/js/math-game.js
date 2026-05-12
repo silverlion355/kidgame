@@ -367,10 +367,22 @@ const MathGame = (function() {
 
 // 页面加载后注入数学游戏HTML
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('[MathGame] DOMContentLoaded fired');
   var container = document.querySelector('.container');
-  if (container && !document.getElementById('math-screen')) {
-    var mathDiv = document.createElement('div');
-    mathDiv.innerHTML = MathGame.getHtml();
-    container.appendChild(mathDiv.firstElementChild);
+  console.log('[MathGame] container:', container);
+  if (container) {
+    var existing = document.getElementById('math-screen');
+    console.log('[MathGame] existing math-screen:', existing);
+    if (!existing) {
+      var mathDiv = document.createElement('div');
+      mathDiv.innerHTML = MathGame.getHtml();
+      var el = mathDiv.firstElementChild;
+      console.log('[MathGame] injecting element:', el ? el.id : 'null');
+      container.appendChild(el);
+    } else {
+      console.log('[MathGame] math-screen already exists');
+    }
+  } else {
+    console.error('[MathGame] container not found!');
   }
 });

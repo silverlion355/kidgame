@@ -864,16 +864,15 @@ function checkAndroidTTS() {
 
   // ===== 数学游戏入口 =====
   function goToMathGame() {
-    if (typeof MathGame !== 'undefined') {
-      var mathScreen = document.getElementById('math-screen');
-      if (mathScreen) {
-        showScreen('math-screen');
-        MathGame.showMenu();
-      } else {
-        alert('数学游戏加载中，请稍后...');
-      }
+    console.log('[goToMathGame] called, MathGame:', typeof MathGame);
+    var mathScreen = document.getElementById('math-screen');
+    console.log('[goToMathGame] math-screen:', mathScreen);
+    if (mathScreen) {
+      showScreen('math-screen');
+      MathGame.showMenu();
     } else {
-      alert('数学游戏模块未加载');
+      console.warn('[goToMathGame] math-screen not found!');
+      alert('数学游戏加载中，请稍后...');
     }
   }
 
