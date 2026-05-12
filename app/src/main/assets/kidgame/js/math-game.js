@@ -242,8 +242,11 @@ const MathGame = (function() {
       '24points': '凑24点'
     };
 
-    var html = '<div class="math-game-header">' +
-      '<div class="level-info">第' + (questionCount + 1) + '题</div>' +
+    var html = '<div style="padding:16px;">' +
+      '<button onclick="MathGame.showMenu()" style="background:#f0f0f0;border:1px solid #ddd;padding:8px 16px;border-radius:8px;cursor:pointer;">‹ 返回</button>' +
+    '</div>' +
+    '<div class="math-game-header">' +
+      '<div class="level-info">第' + questionCount + '题</div>' +
       '<div class="math-score">得分: ' + score + '</div>' +
     '</div>' +
     '<div class="question-card fade-in">' +
@@ -281,6 +284,13 @@ const MathGame = (function() {
     '</div>';
   }
 
+  function generateQuestion() {
+    if (currentGame === 'speed') return generateSpeedMath();
+    if (currentGame === 'pattern') return generatePattern();
+    if (currentGame === '24points') return generate24Points();
+    return generateSpeedMath();
+  }
+
   // ===== 公开接口 =====
   return {
     showMenu: function() {
@@ -309,12 +319,13 @@ const MathGame = (function() {
       document.getElementById('math-game-area').innerHTML = renderGameArea(currentQuestion);
     },
 
-    function generateQuestion() {
-    if (currentGame === 'speed') return generateSpeedMath();
-    if (currentGame === 'pattern') return generatePattern();
-    if (currentGame === '24points') return generate24Points();
-    return generateSpeedMath();
-  }
+    // 生成题目
+    generateQuestion: function() {
+      if (currentGame === 'speed') return generateSpeedMath();
+      if (currentGame === 'pattern') return generatePattern();
+      if (currentGame === '24points') return generate24Points();
+      return generateSpeedMath();
+    },
 
     nextQuestion: function() {
       questionCount++;
