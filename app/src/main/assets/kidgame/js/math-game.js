@@ -355,3 +355,13 @@ const MathGame = (function() {
     }
   };
 })();
+
+// 页面加载后注入数学游戏HTML
+document.addEventListener('DOMContentLoaded', function() {
+  var container = document.querySelector('.container');
+  if (container && !document.getElementById('math-screen')) {
+    var mathDiv = document.createElement('div');
+    mathDiv.innerHTML = MathGame.getHtml();
+    container.appendChild(mathDiv.firstElementChild);
+  }
+});
