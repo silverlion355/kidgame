@@ -856,10 +856,25 @@ function checkAndroidTTS() {
       alert('返回失败: ' + e.message);
     }
   }
-  // ===== wrong book =====
+  // ===== 错题本 =====
   function showWrongBook() {
     showScreen('wrongbook-screen');
     renderWrongBook();
+  }
+
+  // ===== 数学游戏入口 =====
+  function goToMathGame() {
+    if (typeof MathGame !== 'undefined') {
+      var mathScreen = document.getElementById('math-screen');
+      if (mathScreen) {
+        showScreen('math-screen');
+        MathGame.showMenu();
+      } else {
+        alert('数学游戏加载中，请稍后...');
+      }
+    } else {
+      alert('数学游戏模块未加载');
+    }
   }
 
   function renderWrongBook() {
@@ -1223,7 +1238,10 @@ function checkAndroidTTS() {
     closeUseFreeTimeModal: closeUseFreeTimeModal,
     confirmUseFreeTime: confirmUseFreeTime,
     useFreeTimeQuick: useFreeTimeQuick,
-    updateShopFreeTime: updateShopFreeTime
+    updateShopFreeTime: updateShopFreeTime,
+    goToMathGame: goToMathGame,
+    playCorrectSound: playCorrectSound,
+    playWrongSound: playWrongSound
   };
 })();
 
