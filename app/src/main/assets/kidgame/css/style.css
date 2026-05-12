@@ -788,36 +788,64 @@ body {
 /* ========== 拼音标注样式（已优化尺寸和对齐）========== */
 .question-text {
   font-size: 32px !important;
-  line-height: 1.8 !important;
+  line-height: 2.2 !important;
   text-align: center;
   color: var(--text);
   font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px 6px;
 }
 
 .question-text ruby {
   display: inline-flex;
   flex-direction: column-reverse;
   align-items: center;
-  vertical-align: baseline;
+  vertical-align: top;
   line-height: 1;
   margin: 0 2px;
-  position: relative;
 }
 .question-text ruby rb {
   display: inline-block;
   font-size: 36px;
-  line-height: 1.2;
+  line-height: 1.1;
   font-weight: 800;
+  text-align: center;
 }
 .question-text ruby rt {
-  display: inline-block;
-  font-size: 18px;
+  display: block;
+  font-size: 16px;
   color: #555;
   text-align: center;
   line-height: 1.2;
   -webkit-text-size-adjust: none;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-weight: 600;
+  min-width: 20px;
+}
+
+/* 田字格与拼音对齐 */
+.question-text .tianzi-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: top;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #555;
+  background: #fff;
+  margin: 0 2px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* 保持行内其他元素对齐 */
+.question-text > span,
+.question-text > br {
+  display: inline-block;
+  vertical-align: top;
 }
 
 /* ========== 萌娃商店 ========== */
