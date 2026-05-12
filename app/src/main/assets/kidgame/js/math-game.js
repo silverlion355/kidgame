@@ -296,6 +296,7 @@ const MathGame = (function() {
     showMenu: function() {
       document.getElementById('math-game-area').style.display = 'none';
       document.getElementById('math-menu').style.display = 'block';
+      document.getElementById('math-screen').classList.add('active');
       currentGame = null;
       questionCount = 0;
       correctCount = 0;
