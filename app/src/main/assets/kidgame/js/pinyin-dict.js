@@ -288,7 +288,8 @@ var PinyinDict = (function() {
   return {
     getPinyin: getPinyin,
     getPinyinArray: getPinyinArray,
-    toPinyinHtml: toPinyinHtml
+    toPinyinHtml: toPinyinHtml,
+    getAll: function() { return dict; }
   };
 })();
 
