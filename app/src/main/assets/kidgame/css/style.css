@@ -785,28 +785,39 @@ body {
   transform: translateY(-50%);
 }
 
-/* ========== 拼音标注样式 ========== */
+/* ========== 拼音标注样式（已优化尺寸和对齐）========== */
+.question-text {
+  font-size: 32px !important;
+  line-height: 1.8 !important;
+  text-align: center;
+  color: var(--text);
+  font-weight: 700;
+}
+
 .question-text ruby {
   display: inline-flex;
   flex-direction: column-reverse;
   align-items: center;
   vertical-align: baseline;
   line-height: 1;
-  margin: 0 1px;
+  margin: 0 2px;
+  position: relative;
 }
 .question-text ruby rb {
   display: inline-block;
-  font-size: 22px;
+  font-size: 36px;
   line-height: 1.2;
+  font-weight: 800;
 }
 .question-text ruby rt {
   display: inline-block;
-  font-size: 11px;
-  color: #888;
+  font-size: 18px;
+  color: #555;
   text-align: center;
-  line-height: 1.1;
+  line-height: 1.2;
   -webkit-text-size-adjust: none;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 /* ========== 萌娃商店 ========== */
@@ -1010,15 +1021,30 @@ body {
   50% { opacity: 0.5; }
 }
 
-/* 选项按钮加大 */
-.option-btn {
-  font-size: 20px !important;
-  padding: 18px 20px !important;
-  min-height: 60px;
+/* 选项拼音样式 */
+.option-btn ruby {
+  display: inline-flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  vertical-align: baseline;
+  line-height: 1;
+  margin: 0 2px;
 }
-
-.option-btn span:first-child {
-  font-size: 28px !important;
+.option-btn ruby rb {
+  display: inline-block;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.option-btn ruby rt {
+  display: inline-block;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  line-height: 1.2;
+  -webkit-text-size-adjust: none;
+  margin-bottom: 3px;
+  font-weight: 500;
 }
 
 /* 题目文字加大 */
