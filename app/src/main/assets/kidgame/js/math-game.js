@@ -223,20 +223,18 @@ const MathGame = (function() {
     var info = gameInfo[currentGame] || { name: '', icon: '', color: '' };
     var progress = getGameProgress(currentGame);
 
-    var html = '<div id="math-screen" class="screen">' +
-      '<div class="top-bar">' +
-        '<button class="btn-back" onclick="MathGame.showMenu()">‹</button>' +
-        '<h3>' + info.name + '</h3>' +
-        '<div></div>' +
-      '</div>' +
-      '<div class="subject-progress" style="padding:8px 0 16px;text-align:center;">' +
-        '<span style="color:#666;">最高关卡: ' + progress.highestLevel + ' | 已通关: ' + Object.keys(progress.stars).length + ' 关</span>' +
-      '</div>' +
-      '<div class="level-grid" id="math-level-grid"></div>' +
-      '<div id="math-game-area" style="display:none"></div>' +
-    '</div>';
-
-    return html;
+    // 只返回内部内容，不包含外层math-screen div
+    return '<div class="top-bar">' +
+      '<button class="btn-back" onclick="MathGame.showMenu()">‹</button>' +
+      '<h3>' + info.name + '</h3>' +
+      '<div></div>' +
+    '</div>' +
+    '<div class="subject-progress" style="padding:8px 0 16px;text-align:center;">' +
+      '<span style="color:#666;">最高关卡: ' + progress.highestLevel + ' | 已通关: ' + Object.keys(progress.stars).length + ' 关</span>' +
+    '</div>' +
+    '<div class="level-grid" id="math-level-grid"></div>' +
+    '<div id="math-game-area" style="display:none"></div>';
+  }
   }
 
   // ===== 渲染关卡按钮 =====
@@ -383,16 +381,18 @@ const MathGame = (function() {
       score = 0;
       levelCorrectCount = 0;
 
-      var screen = document.getElementById('math-screen');
-      if (!screen) {
+      var existing = document.getElementById('math-screen');
+      if (!existing) {
         var mathDiv = document.createElement('div');
-        mathDiv.innerHTML = renderLevelSelect();
-        document.querySelector('.container').appendChild(mathDiv.firstElementChild);
-        screen = document.getElementById('math-screen');
+        mathDiv.id = 'math-screen';
+        mathDiv.className = 'screen active';
+        document.querySelector('.container').appendChild(mathDiv);
       }
 
+      // 重置到关卡选择界面
+      var screen = document.getElementById('math-screen');
+      screen.className = 'screen active';
       screen.innerHTML = renderLevelSelect();
-      App.showScreen('math-screen');
 
       setTimeout(function() { renderLevelButtons(); }, 50);
     },
