@@ -71,8 +71,8 @@ const MathGame = (function() {
         for (var i = 0; i < 4; i++) seq.push(start + i * diff);
         var missingIdx = randInt(1, 3);
         var answer = seq[missingIdx];
-        seq[missingIdx] = '?';
-        var q = seq.join(', ') + '  ( ? )';
+        seq[missingIdx] = '（ ）';
+        var q = seq.join(', ');
         var options = shuffle([answer, answer + diff, answer - diff, answer + randInt(1, 10)]).slice(0, 4);
         return { type: 'pattern', q: q, options: options, answer: answer };
       },
@@ -84,8 +84,8 @@ const MathGame = (function() {
         for (var i = 0; i < 4; i++) seq.push(start * Math.pow(mul, i));
         var missingIdx = randInt(1, 3);
         var answer = seq[missingIdx];
-        seq[missingIdx] = '?';
-        var q = seq.join(', ') + '  ( ? )';
+        seq[missingIdx] = '（ ）';
+        var q = seq.join(', ');
         var options = shuffle([answer, answer * mul, seq[missingIdx - 1] * mul, answer + randInt(1, 10)]).slice(0, 4);
         return { type: 'pattern', q: q, options: options, answer: answer };
       },
@@ -96,8 +96,8 @@ const MathGame = (function() {
         for (var i = 0; i < 4; i++) seq.push(Math.pow(start + i, 2));
         var missingIdx = randInt(1, 3);
         var answer = seq[missingIdx];
-        seq[missingIdx] = '?';
-        var q = seq.join(', ') + '  ( ? )';
+        seq[missingIdx] = '（ ）';
+        var q = seq.join(', ');
         var options = shuffle([answer, Math.pow(start + missingIdx + 1, 2), Math.pow(start + missingIdx - 1, 2), answer + randInt(2, 8)]).slice(0, 4);
         return { type: 'pattern', q: q, options: options, answer: answer };
       }
@@ -242,17 +242,26 @@ const MathGame = (function() {
       '24points': '凑24点'
     };
 
-    var html = '<div style="padding:16px;">' +
-      '<button onclick="App.showScreen(\'home-screen\')" style="background:#f0f0f0;border:1px solid #ddd;padding:8px 16px;border-radius:8px;cursor:pointer;">‹ 返回</button>' +
-    '</div>' +
-    '<div class="math-game-header">' +
+    var html = '<div class="math-game-header">' +
       '<div class="level-info">第' + questionCount + '题</div>' +
       '<div class="math-score">得分: ' + score + '</div>' +
-    '</div>' +
-    '<div class="question-card fade-in">' +
-      '<div class="question-text" style="font-size:32px;">' + question.q + '</div>' +
-    '</div>' +
-    '<div class="options" id="math-options">';
+    '</div>';
+
+    // 凑24点特殊布局：数字放第二行
+    if (currentGame === '24points' && question.numbers) {
+      html += '<div class="question-card fade-in">' +
+        '<div class="question-text" style="font-size:24px;">用以下数字算出24:</div>' +
+        '<div style="display:flex;justify-content:center;gap:16px;margin-top:16px;font-size:48px;font-weight:bold;">' +
+        question.numbers.map(function(n) { return '<span>' + n + '</span>'; }).join('') +
+        '</div>' +
+      '</div>';
+    } else {
+      html += '<div class="question-card fade-in">' +
+        '<div class="question-text" style="font-size:32px;">' + question.q + '</div>' +
+      '</div>';
+    }
+
+    html += '<div class="options" id="math-options">';
 
     question.options.forEach(function(opt, idx) {
       html += '<button class="option-btn fade-in" onclick="MathGame.checkAnswer(\'' + opt + '\')" style="animation-delay:' + (idx * 0.1) + 's">' + opt + '</button>';

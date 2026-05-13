@@ -213,7 +213,7 @@ function checkAndroidTTS() {
   function renderStars(count, total) {
     var s = '';
     for (var i = 0; i < 5 && i < total; i++) {
-      s += i < count ? '⭐' : '☆';
+      s += i < count ? '★' : '☆';
     }
     return s;
   }
@@ -264,7 +264,7 @@ function checkAndroidTTS() {
       var btn = document.createElement('button');
       btn.className = 'level-btn';
       var starCount = stars[i] || 0;
-      var starStr = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
+      var starStr = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
       if (i > unlocked) {
         btn.classList.add('locked');
         btn.innerHTML = '<span class="lock-icon">🔒</span>';
@@ -790,7 +790,7 @@ function checkAndroidTTS() {
     var homeBtn = modal.querySelector('.modal-btn.secondary:last-child');
     if (success) {
       title.textContent = '🎉 恭喜过关！';
-      starsEl.textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+      starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
       msg.textContent = '获得 ' + coins + ' 金币！继续加油！';
       if (nextBtn) nextBtn.style.display = '';
       if (homeBtn) homeBtn.style.display = '';
@@ -1048,16 +1048,16 @@ function checkAndroidTTS() {
 
   function getGiftsInline() {
     return [
-      { id: 'gift_001', name: '小星星', icon: '⭐', price: 50, desc: '闪闪发光的小星星' },
-      { id: 'gift_002', name: '小花朵', icon: '🌸', price: 80, desc: '一朵美丽的花朵' },
-      { id: 'gift_003', name: '小皇冠', icon: '👑', price: 120, desc: '小小国王的皇冠' },
-      { id: 'gift_004', name: '小火箭', icon: '🚀', price: 150, desc: '嗖——飞上天啦' },
-      { id: 'gift_005', name: '小蛋糕', icon: '🎂', price: 100, desc: '香甜可口的小蛋糕' },
-      { id: 'gift_006', name: '小气球', icon: '🎈', price: 60, desc: '五颜六色的小气球' },
-      { id: 'gift_007', name: '小奖杯', icon: '🏆', price: 200, desc: '你是第一名！' },
-      { id: 'gift_008', name: '小礼物盒', icon: '🎁', price: 180, desc: '里面藏着惊喜哦' },
-      { id: 'gift_009', name: '小彩虹', icon: '🌈', price: 160, desc: '雨后的美丽彩虹' },
-      { id: 'gift_010', name: '小月亮', icon: '🌙', price: 140, desc: '晚上陪你睡觉' }
+      { id: 'gift_001', name: '小星星', icon: '<span class="gift-icon" style="color:#FFD700">★</span>', price: 50, desc: '闪闪发光的小星星' },
+      { id: 'gift_002', name: '小花朵', icon: '<span class="gift-icon" style="color:#FF69B4">❀</span>', price: 80, desc: '一朵美丽的花朵' },
+      { id: 'gift_003', name: '小皇冠', icon: '<span class="gift-icon" style="color:#FFD700">♔</span>', price: 120, desc: '小小国王的皇冠' },
+      { id: 'gift_004', name: '小火箭', icon: '<span class="gift-icon" style="color:#FF4444">▲</span>', price: 150, desc: '嗖——飞上天啦' },
+      { id: 'gift_005', name: '小蛋糕', icon: '<span class="gift-icon" style="color:#FFB6C1">◕</span>', price: 100, desc: '香甜可口的小蛋糕' },
+      { id: 'gift_006', name: '小气球', icon: '<span class="gift-icon" style="color:#87CEEB">○</span>', price: 60, desc: '五颜六色的小气球' },
+      { id: 'gift_007', name: '小奖杯', icon: '<span class="gift-icon" style="color:#FFD700">☺</span>', price: 200, desc: '你是第一名！' },
+      { id: 'gift_008', name: '小礼物盒', icon: '<span class="gift-icon" style="color:#E91E63">♂</span>', price: 180, desc: '里面藏着惊喜哦' },
+      { id: 'gift_009', name: '小彩虹', icon: '<span class="gift-icon" style="color:#9400D3">◇</span>', price: 160, desc: '雨后的美丽彩虹' },
+      { id: 'gift_010', name: '小月亮', icon: '<span class="gift-icon" style="color:#FFFACD">☽</span>', price: 140, desc: '晚上陪你睡觉' }
     ];
   }
 
