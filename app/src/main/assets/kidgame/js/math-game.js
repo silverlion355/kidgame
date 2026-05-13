@@ -365,12 +365,18 @@ const MathGame = (function() {
       currentGame = null;
       var container = document.querySelector('.container');
       var existing = document.getElementById('math-screen');
-      if (!existing) {
-        var mathDiv = document.createElement('div');
-        mathDiv.innerHTML = renderMathMenu();
-        container.appendChild(mathDiv.firstElementChild);
+      if (existing) {
+        existing.className = 'screen active';
+        existing.innerHTML = renderMathMenu();
+      } else {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = renderMathMenu();
+        container.appendChild(wrapper.firstElementChild);
       }
-      App.showScreen('math-screen');
+      // 确保其他屏幕隐藏
+      document.querySelectorAll('.screen').forEach(function(s) {
+        if (s.id !== 'math-screen') s.classList.remove('active');
+      });
     },
 
     showLevelSelect: function(gameType) {
