@@ -11,6 +11,9 @@ const MathGame = (function() {
   var timer = null;
   var timeLeft = 0;
   var TOTAL_QUESTIONS = 10;
+  var QUESTIONS_PER_LEVEL = 5;
+  var currentLevel = 1;
+  var levelCorrectCount = 0;
 
   // ===== 工具函数 =====
   function randInt(min, max) {
@@ -243,8 +246,12 @@ const MathGame = (function() {
     };
 
     var html = '<div class="math-game-header">' +
-      '<div class="level-info">第' + questionCount + '题</div>' +
+      '<button class="btn-back" onclick="MathGame.showMenu()" style="background:none;border:none;font-size:32px;cursor:pointer;padding:0;">‹</button>' +
+      '<div class="level-info">关卡' + currentLevel + '</div>' +
       '<div class="math-score">得分: ' + score + '</div>' +
+    '</div>' +
+    '<div class="progress-bar" style="margin:10px 16px;">' +
+      '<div class="fill" style="width:' + ((questionCount % QUESTIONS_PER_LEVEL) / QUESTIONS_PER_LEVEL * 100) + '%"></div>' +
     '</div>';
 
     // 凑24点特殊布局：数字放第二行
@@ -277,17 +284,35 @@ const MathGame = (function() {
   }
 
   function renderResult() {
-    var stars = correctCount >= TOTAL_QUESTIONS * 0.8 ? '⭐⭐⭐' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '⭐⭐' : '⭐');
+    var stars = correctCount >= TOTAL_QUESTIONS * 0.8 ? '★★★' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '★★' : '★');
     var msg = correctCount >= TOTAL_QUESTIONS * 0.8 ? '太厉害了！' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '不错，继续加油！' : '再试一次吧！');
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
-      '<h2>🎉 本轮结束！</h2>' +
+      '<h2>本轮结束！</h2>' +
       '<div style="font-size:48px;margin:20px 0;">' + stars + '</div>' +
       '<p style="font-size:20px;">得分: ' + score + '</p>' +
       '<p>答对: ' + correctCount + ' / ' + TOTAL_QUESTIONS + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
         '<button class="modal-btn" onclick="MathGame.startGame(currentGame)">再来一局</button>' +
+        '<button class="modal-btn secondary" onclick="MathGame.showMenu()" style="margin-top:8px;">返回选择</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderLevelUp() {
+    var levelStars = levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.8 ? '★★★' : (levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.5 ? '★★' : '★');
+    var msg = levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.8 ? '太厉害了！' : (levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.5 ? '不错，继续加油！' : '再试一次吧！');
+    currentLevel++;
+    levelCorrectCount = 0;
+
+    return '<div class="question-card fade-in" style="text-align:center;">' +
+      '<h2>过关啦！</h2>' +
+      '<div style="font-size:48px;margin:20px 0;">' + levelStars + '</div>' +
+      '<p style="font-size:20px;">第 ' + (currentLevel - 1) + ' 关 完成！</p>' +
+      '<p style="color:#666;">' + msg + '</p>' +
+      '<div style="margin-top:20px;">' +
+        '<button class="modal-btn" onclick="MathGame.resumeGame()">继续下一关</button>' +
         '<button class="modal-btn secondary" onclick="MathGame.showMenu()" style="margin-top:8px;">返回选择</button>' +
       '</div>' +
     '</div>';
@@ -310,6 +335,8 @@ const MathGame = (function() {
       questionCount = 0;
       correctCount = 0;
       score = 0;
+      currentLevel = 1;
+      levelCorrectCount = 0;
       if (timer) {
         clearInterval(timer);
         timer = null;
@@ -321,6 +348,8 @@ const MathGame = (function() {
       questionCount = 0;
       correctCount = 0;
       score = 0;
+      currentLevel = 1;
+      levelCorrectCount = 0;
 
       document.getElementById('math-menu').style.display = 'none';
       document.getElementById('math-game-area').style.display = 'block';
@@ -356,17 +385,31 @@ const MathGame = (function() {
 
       if (correct) {
         correctCount++;
+        levelCorrectCount++;
         score += currentGame === '24points' ? 20 : 10;
         App.playCorrectSound();
       } else {
         App.playWrongSound();
       }
 
-      if (questionCount >= TOTAL_QUESTIONS) {
+      // 检查是否完成当前关卡（每5题一个关卡）
+      if (questionCount > 0 && questionCount % QUESTIONS_PER_LEVEL === 0) {
+        // 关卡完成
+        if (questionCount >= TOTAL_QUESTIONS) {
+          document.getElementById('math-game-area').innerHTML = renderResult();
+        } else {
+          document.getElementById('math-game-area').innerHTML = renderLevelUp();
+        }
+      } else if (questionCount >= TOTAL_QUESTIONS) {
         document.getElementById('math-game-area').innerHTML = renderResult();
       } else {
         MathGame.nextQuestion();
       }
+    },
+
+    resumeGame: function() {
+      currentQuestion = generateQuestion();
+      document.getElementById('math-game-area').innerHTML = renderGameArea(currentQuestion);
     },
 
     getHtml: function() {
