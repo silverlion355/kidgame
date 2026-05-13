@@ -5,6 +5,7 @@
 
 const GameStorage = (function () {
   const PREFIX = 'kidgame_';
+  const MAX_LOGS = 100;
 
   function key(name) { return PREFIX + name; }
 
@@ -189,6 +190,32 @@ const GameStorage = (function () {
     return true;
   }
 
+  // ===== 日志系统 =====
+  function addLog(type, msg, data) {
+    try {
+      var logs = get('logs') || [];
+      var entry = {
+        time: new Date().toISOString(),
+        type: type,
+        msg: msg,
+        data: data || null
+      };
+      logs.unshift(entry);
+      if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
+      set('logs', logs);
+      // 同时输出到console
+      console.log('[KidGame][' + type + '] ' + msg, data || '');
+    } catch (e) {}
+  }
+
+  function getLogs() {
+    return get('logs') || [];
+  }
+
+  function clearLogs() {
+    remove('logs');
+  }
+
   return {
     getProgress, saveProgress, saveLevelStars,
     getWrongBook, addWrong, removeWrong,
@@ -196,6 +223,7 @@ const GameStorage = (function () {
     addCoins, spendCoins,
     getShop, saveShop, buyGift, hasGift, getOwnedGifts,
     addFreeTime, getFreeTimeBalance, useFreeTime,
-    get, set, remove
+    get, set, remove,
+    addLog, getLogs, clearLogs
   };
 })();

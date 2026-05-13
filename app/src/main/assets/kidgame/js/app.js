@@ -867,12 +867,29 @@ function checkAndroidTTS() {
     console.log('[goToMathGame] called, MathGame:', typeof MathGame);
     var mathScreen = document.getElementById('math-screen');
     console.log('[goToMathGame] math-screen:', mathScreen);
+    GameStorage.addLog('info', 'goToMathGame called, math-screen exists: ' + !!mathScreen);
+
     if (mathScreen) {
       showScreen('math-screen');
       MathGame.showMenu();
     } else {
-      console.warn('[goToMathGame] math-screen not found!');
-      alert('数学游戏加载中，请稍后...');
+      console.warn('[goToMathGame] math-screen not found, creating...');
+      GameStorage.addLog('warn', 'math-screen not found, creating element');
+      // 如果math-screen不存在，直接用MathGame的getHtml创建
+      var container = document.querySelector('.container');
+      if (container && MathGame.getHtml) {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = MathGame.getHtml();
+        container.appendChild(wrapper.firstElementChild);
+        GameStorage.addLog('info', 'math-screen created via getHtml');
+        setTimeout(function() {
+          showScreen('math-screen');
+          MathGame.showMenu();
+        }, 100);
+      } else {
+        GameStorage.addLog('error', 'Cannot create math-screen - MathGame or container not available');
+        alert('数学游戏加载失败，请重启应用');
+      }
     }
   }
 
@@ -1212,6 +1229,39 @@ function checkAndroidTTS() {
     }
   }
 
+  // ===== 调试日志 =====
+  function showDebugLog() {
+    var logs = GameStorage.getLogs();
+    var content = document.getElementById('debuglog-content');
+    if (content) {
+      if (logs.length === 0) {
+        content.innerHTML = '<div style="color:#666;text-align:center;padding:40px;">暂无日志</div>';
+      } else {
+        content.innerHTML = logs.map(function(l) {
+          var color = l.type === 'error' ? 'red' : l.type === 'warn' ? 'orange' : '#333';
+          var dataStr = l.data ? '<div style="color:#888;font-size:11px;">' + JSON.stringify(l.data) + '</div>' : '';
+          return '<div style="color:' + color + ';border-bottom:1px solid #eee;padding:8px 0;">[' + l.time + '] [' + l.type + '] ' + escapeHtml(l.msg) + dataStr + '</div>';
+        }).join('');
+      }
+    }
+    showScreen('debuglog-screen');
+  }
+
+  function hideDebugLog() {
+    showScreen('home-screen');
+  }
+
+  function clearDebugLog() {
+    GameStorage.clearLogs();
+    var content = document.getElementById('debuglog-content');
+    if (content) content.innerHTML = '<div style="color:#666;text-align:center;padding:40px;">日志已清空</div>';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   // ===== public API =====
   return {
     init: init,
@@ -1238,6 +1288,9 @@ function checkAndroidTTS() {
     confirmUseFreeTime: confirmUseFreeTime,
     useFreeTimeQuick: useFreeTimeQuick,
     updateShopFreeTime: updateShopFreeTime,
+    showDebugLog: showDebugLog,
+    hideDebugLog: hideDebugLog,
+    clearDebugLog: clearDebugLog,
     goToMathGame: goToMathGame,
     playCorrectSound: playCorrectSound,
     playWrongSound: playWrongSound

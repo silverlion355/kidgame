@@ -181,6 +181,17 @@
         <h3>🎁 小礼物</h3>
         <div id="shop-items" class="shop-items-grid"></div>
       </div>
+      <button class="modal-btn secondary" onclick="App.showDebugLog()" style="margin-top:16px;width:100%;">📋 查看日志</button>
+    </div>
+
+    <!-- ========== 调试日志 ========== -->
+    <div id="debuglog-screen" class="screen">
+      <div class="top-bar">
+        <button class="btn-back" onclick="App.hideDebugLog()">‹</button>
+        <h3>📋 调试日志</h3>
+        <button onclick="App.clearDebugLog()" style="background:none;border:none;color:#666;font-size:14px;">清空</button>
+      </div>
+      <div id="debuglog-content" style="padding:12px;font-size:12px;line-height:1.6;word-break:break-all;"></div>
     </div>
 
     <!-- ========== 结果弹窗 ========== -->

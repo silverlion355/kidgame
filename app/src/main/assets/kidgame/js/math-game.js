@@ -362,21 +362,35 @@ const MathGame = (function() {
   // ===== 公开接口 =====
   return {
     showMenu: function() {
-      currentGame = null;
-      var container = document.querySelector('.container');
-      var existing = document.getElementById('math-screen');
-      if (existing) {
-        existing.className = 'screen active';
-        existing.innerHTML = renderMathMenu();
-      } else {
-        var wrapper = document.createElement('div');
-        wrapper.innerHTML = renderMathMenu();
-        container.appendChild(wrapper.firstElementChild);
+      try {
+        GameStorage.addLog('info', 'MathGame.showMenu called');
+        currentGame = null;
+        var container = document.querySelector('.container');
+        if (!container) {
+          GameStorage.addLog('error', 'container not found');
+          return;
+        }
+        var existing = document.getElementById('math-screen');
+        GameStorage.addLog('info', 'math-screen existing: ' + !!existing);
+        if (existing) {
+          existing.className = 'screen active';
+          existing.innerHTML = renderMathMenu();
+          GameStorage.addLog('info', 'math-screen innerHTML replaced');
+        } else {
+          var wrapper = document.createElement('div');
+          wrapper.innerHTML = renderMathMenu();
+          container.appendChild(wrapper.firstElementChild);
+          GameStorage.addLog('info', 'math-screen created and appended');
+        }
+        // 确保其他屏幕隐藏
+        document.querySelectorAll('.screen').forEach(function(s) {
+          if (s.id !== 'math-screen') s.classList.remove('active');
+        });
+        GameStorage.addLog('info', 'MathGame.showMenu done');
+      } catch(e) {
+        GameStorage.addLog('error', 'MathGame.showMenu error: ' + e.message);
+        console.error('[MathGame.showMenu] error:', e);
       }
-      // 确保其他屏幕隐藏
-      document.querySelectorAll('.screen').forEach(function(s) {
-        if (s.id !== 'math-screen') s.classList.remove('active');
-      });
     },
 
     showLevelSelect: function(gameType) {
