@@ -1054,7 +1054,7 @@ function checkAndroidTTS() {
       { id: 'gift_004', name: '小火箭', icon: '<span class="gift-icon" style="color:#FF4444">&#x25B2;</span>', price: 150, desc: '嗖——飞上天啦' },
       { id: 'gift_005', name: '小蛋糕', icon: '<span class="gift-icon" style="color:#FFB6C1">&#x25D5;</span>', price: 100, desc: '香甜可口的小蛋糕' },
       { id: 'gift_006', name: '小气球', icon: '<span class="gift-icon" style="color:#87CEEB">&#x25CB;</span>', price: 60, desc: '五颜六色的小气球' },
-      { id: 'gift_007', name: '小奖杯', icon: '<span class="gift-icon" style="color:#FFD700;font-size:24px;">&#x26BD;</span>', price: 200, desc: '你是第一名！' },
+      { id: 'gift_007', name: '小奖杯', icon: '<span class="gift-icon" style="color:#FFD700;font-size:20px;">&#x26FA;</span>', price: 200, desc: '你是第一名！' },
       { id: 'gift_008', name: '小礼物盒', icon: '<span class="gift-icon" style="color:#E91E63">&#x2642;</span>', price: 180, desc: '里面藏着惊喜哦' },
       { id: 'gift_009', name: '小彩虹', icon: '<span class="gift-icon" style="color:#9400D3">&#x25C7;</span>', price: 160, desc: '雨后的美丽彩虹' },
       { id: 'gift_010', name: '小月亮', icon: '<span class="gift-icon" style="color:#FFFACD">&#x263D;</span>', price: 140, desc: '晚上陪你睡觉' }

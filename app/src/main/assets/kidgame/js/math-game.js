@@ -387,7 +387,7 @@ const MathGame = (function() {
       if (!screen) {
         var mathDiv = document.createElement('div');
         mathDiv.innerHTML = renderLevelSelect();
-        container.appendChild(mathDiv.firstElementChild);
+        document.querySelector('.container').appendChild(mathDiv.firstElementChild);
         screen = document.getElementById('math-screen');
       }
 
