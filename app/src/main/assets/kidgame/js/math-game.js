@@ -209,7 +209,7 @@ const MathGame = (function() {
 
     var html = '<div id="math-screen" class="screen">' +
       '<div class="top-bar">' +
-        '<button class="btn-back" onclick="MathGame.showMenu()">‹</button>' +
+        '<button class="btn-back" onclick="App.showScreen(\'home-screen\')">‹</button>' +
         '<h3>数学小游戏</h3>' +
         '<div></div>' +
       '</div>' +
@@ -243,7 +243,7 @@ const MathGame = (function() {
     };
 
     var html = '<div style="padding:16px;">' +
-      '<button onclick="MathGame.showMenu()" style="background:#f0f0f0;border:1px solid #ddd;padding:8px 16px;border-radius:8px;cursor:pointer;">‹ 返回</button>' +
+      '<button onclick="App.showScreen(\'home-screen\')" style="background:#f0f0f0;border:1px solid #ddd;padding:8px 16px;border-radius:8px;cursor:pointer;">‹ 返回</button>' +
     '</div>' +
     '<div class="math-game-header">' +
       '<div class="level-info">第' + questionCount + '题</div>' +
