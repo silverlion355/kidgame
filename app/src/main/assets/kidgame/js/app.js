@@ -34,6 +34,18 @@ window.onAndroidTTSReady = function() {
   }
 };
 
+// 监听Android TTS初始化成功事件
+window.onAndroidTTSReady = function() {
+  console.log('[onAndroidTTSReady] TTS initialized successfully');
+  _androidTtsKnownUnavailable = false;
+  _ttsInitialized = true;
+  if (_pendingSpeak) {
+    var ps = _pendingSpeak;
+    _pendingSpeak = null;
+    speakWithAndroidTTS(ps.text, ps.lang);
+  }
+};
+
 // 监听Android TTS初始化失败事件
 window.onAndroidTTSFailed = function() {
   console.error('[onAndroidTTSFailed] TTS initialization failed!');
@@ -42,19 +54,15 @@ window.onAndroidTTSFailed = function() {
 };
 
 function checkAndroidTTS() {
-  if (_androidTtsKnownUnavailable) return false;
   try {
-    var available = !!(window.AndroidTTS && window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
-    if (!available && window.AndroidTTS) {
-      // AndroidTTS存在但isAvailable返回false，可能是还没初始化好
-      // 不标记为永久不可用，让重试逻辑处理
-    } else if (!window.AndroidTTS) {
-      // AndroidTTS不存在，标记为永久不可用
-      _androidTtsKnownUnavailable = true;
-      console.log('[checkAndroidTTS] AndroidTTS not found, marking as permanently unavailable');
-    }
+    if (!window.AndroidTTS) return false;
+    var available = !!(window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    GameStorage.addLog('info', 'checkAndroidTTS: available=' + available);
     return available;
-  } catch(e) { return false; }
+  } catch(e) {
+    GameStorage.addLog('error', 'checkAndroidTTS exception: ' + e.message);
+    return false;
+  }
 }
 
   var TOTAL_QUESTIONS = 5;
@@ -549,7 +557,14 @@ function checkAndroidTTS() {
 
   function speakWithWebSpeech(text, lang) {
     if (!text) { fallbackToPrompt(''); return; }
-    console.log("[speakWithWebSpeech] text:", text, "lang:", lang);
+    GameStorage.addLog('info', 'speakWithWebSpeech: "' + text.substring(0, 20) + '" lang=' + lang);
+
+    // 检查浏览器是否支持Web Speech API
+    if (!window.SpeechSynthesisUtterance) {
+      GameStorage.addLog('error', 'SpeechSynthesisUtterance not supported');
+      fallbackToPrompt(text);
+      return;
+    }
 
     // 清除之前的超时
     if (_speakTimeout) { clearTimeout(_speakTimeout); _speakTimeout = null; }
