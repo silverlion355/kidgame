@@ -34,10 +34,14 @@ public class MainActivity extends AppCompatActivity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         // 允许访问内容
         settings.setAllowContentAccess(true);
+
+        // 设置WebView语音支持
+        settings.setMediaPlaybackRequiresUserGesture(false);
 
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
