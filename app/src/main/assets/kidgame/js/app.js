@@ -39,10 +39,34 @@ window.onAndroidTTSReady = function() {
   console.log('[onAndroidTTSReady] TTS initialized successfully');
   _androidTtsKnownUnavailable = false;
   _ttsInitialized = true;
+  GameStorage.addLog('info', 'AndroidTTS ready!');
   if (_pendingSpeak) {
     var ps = _pendingSpeak;
     _pendingSpeak = null;
     speakWithAndroidTTS(ps.text, ps.lang);
+  }
+};
+
+// 处理原生返回键/手势
+window.onNativeBack = function() {
+  console.log('[onNativeBack] called');
+  GameStorage.addLog('info', 'Native back pressed');
+  // 尝试调用App的返回逻辑
+  if (typeof App !== 'undefined' && App.showScreen) {
+    // 获取当前屏幕，尝试返回
+    var current = document.querySelector('.screen.active');
+    if (current && current.id !== 'home-screen') {
+      App.showScreen('home-screen');
+    } else {
+      // 已在首页，尝试关闭应用
+      try {
+        if (window.AndroidBridge && window.AndroidBridge.finish) {
+          window.AndroidBridge.finish();
+        }
+      } catch(e) {
+        console.log('Cannot finish app:', e);
+      }
+    }
   }
 };
 

@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.widget.Toast;
 import android.os.Handler;
 import android.os.Looper;
+import androidx.activity.OnBackPressedCallback;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -45,6 +46,20 @@ public class MainActivity extends AppCompatActivity {
 
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
+
+        // Add bridge interface for JS to call native methods
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void finish() {
+                Log.d(TAG, "finish() called from JS");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        MainActivity.this.finish();
+                    }
+                });
+            }
+        }, "AndroidBridge");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -118,6 +133,20 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Log.e(TAG, "TTS init failed with status: " + status);
                     notifyTTSFailed();
+                }
+            }
+        });
+
+        // 添加系统返回键和手势支持
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                Log.d(TAG, "Back pressed, webView.canGoBack=" + webView.canGoBack());
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    // 通知JS处理返回
+                    webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack(); else finish();", null);
                 }
             }
         });
