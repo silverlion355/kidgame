@@ -865,9 +865,10 @@ function checkAndroidTTS() {
   // ===== 数学游戏入口 =====
   function goToMathGame() {
     console.log('[goToMathGame] called, MathGame:', typeof MathGame);
+    GameStorage.addLog('info', '点击数学游戏入口');
     var mathScreen = document.getElementById('math-screen');
     console.log('[goToMathGame] math-screen:', mathScreen);
-    GameStorage.addLog('info', 'goToMathGame called, math-screen exists: ' + !!mathScreen);
+    GameStorage.addLog('info', 'math-screen exists: ' + !!mathScreen);
 
     if (mathScreen) {
       showScreen('math-screen');

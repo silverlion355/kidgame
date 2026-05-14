@@ -1180,3 +1180,35 @@ body {
   display: inline-block;
   margin: 0 auto;
 }
+
+/* ========== 数学游戏 ========== */
+.math-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.math-game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0 12px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.math-game-header .level-info {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
+}
+
+.math-game-header .math-score {
+  background: var(--yellow-light);
+  color: #F39C12;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+}

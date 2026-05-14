@@ -235,7 +235,6 @@ const MathGame = (function() {
     '<div class="level-grid" id="math-level-grid"></div>' +
     '<div id="math-game-area" style="display:none"></div>';
   }
-  }
 
   // ===== 渲染关卡按钮 =====
   function renderLevelButtons() {
