@@ -507,31 +507,29 @@ const MathGame = (function() {
 
   // ===== 渲染主菜单 =====
   function renderMathMenu() {
-    return '<div id="math-screen" class="screen">' +
-      '<div class="top-bar">' +
-        '<button class="btn-back" onclick="App.showScreen(\'home-screen\')">‹</button>' +
-        '<h3>数学小游戏</h3>' +
-        '<div></div>' +
+    return '<div class="top-bar">' +
+      '<button class="btn-back" onclick="App.showScreen(\'home-screen\')">‹</button>' +
+      '<h3>数学小游戏</h3>' +
+      '<div></div>' +
+    '</div>' +
+    '<div class="math-menu" id="math-menu">' +
+      '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'speed\')">' +
+        '<div class="subject-icon" style="background:#E3F2FD;font-size:28px;">＋－</div>' +
+        '<div class="subject-info"><h3>速算挑战</h3><p>两位数加减法，考验你的速度！</p></div>' +
+        '<div>›</div>' +
       '</div>' +
-      '<div class="math-menu" id="math-menu">' +
-        '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'speed\')">' +
-          '<div class="subject-icon" style="background:#E3F2FD;font-size:28px;">＋－</div>' +
-          '<div class="subject-info"><h3>速算挑战</h3><p>两位数加减法，考验你的速度！</p></div>' +
-          '<div>›</div>' +
-        '</div>' +
-        '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'pattern\')">' +
-          '<div class="subject-icon" style="background:#FFF3E0;font-size:28px;">◎</div>' +
-          '<div class="subject-info"><h3>找规律</h3><p>发现数字的奥秘，填出答案！</p></div>' +
-          '<div>›</div>' +
-        '</div>' +
-        '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'24points\')">' +
-          '<div class="subject-icon" style="background:#E8F5E9;font-size:28px;">✦</div>' +
-          '<div class="subject-info"><h3>凑24点</h3><p>用四个数字计算24点！</p></div>' +
-          '<div>›</div>' +
-        '</div>' +
+      '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'pattern\')">' +
+        '<div class="subject-icon" style="background:#FFF3E0;font-size:28px;">◎</div>' +
+        '<div class="subject-info"><h3>找规律</h3><p>发现数字的奥秘，填出答案！</p></div>' +
+        '<div>›</div>' +
       '</div>' +
-      '<div id="math-game-area" style="display:none"></div>' +
-    '</div>';
+      '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'24points\')">' +
+        '<div class="subject-icon" style="background:#E8F5E9;font-size:28px;">✦</div>' +
+        '<div class="subject-info"><h3>凑24点</h3><p>用四个数字计算24点！</p></div>' +
+        '<div>›</div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="math-game-area" style="display:none"></div>';
   }
 })();
 
@@ -542,8 +540,21 @@ document.addEventListener('DOMContentLoaded', function() {
     var existing = document.getElementById('math-screen');
     if (!existing) {
       var mathDiv = document.createElement('div');
-      mathDiv.innerHTML = MathGame.getHtml();
-      container.appendChild(mathDiv.firstElementChild);
+      mathDiv.id = 'math-screen';
+      mathDiv.className = 'screen';
+      container.appendChild(mathDiv);
+      GameStorage.addLog('info', 'math-screen div created');
     }
   }
+});
+
+// 全局错误捕获
+window.onerror = function(msg, src, line, col, err) {
+  GameStorage.addLog('error', 'JS Error: ' + msg + ' at line ' + line + (err && err.stack ? ' - ' + err.stack : ''));
+  return false;
+};
+
+// 全局未拒绝的 Promise 捕获
+window.addEventListener('unhandledrejection', function(e) {
+  GameStorage.addLog('warn', 'Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
 });

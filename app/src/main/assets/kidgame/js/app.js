@@ -438,7 +438,7 @@ function checkAndroidTTS() {
   }
 
   function speakQuestion() {
-    console.log("[speakQuestion] currentSubject:", currentSubject, "Q:", currentQuestions[currentQIndex]);
+    GameStorage.addLog('info', '[speakQuestion] subject=' + currentSubject + ' Q=' + JSON.stringify(currentQuestions[currentQIndex]));
     var q = currentQuestions[currentQIndex];
     if (!q) return;
 
@@ -469,8 +469,7 @@ function checkAndroidTTS() {
     }
     if (!text) text = q.q;
 
-    console.log("[speakQuestion] text:", text, "lang:", lang);
-    console.log("[speakQuestion] AndroidTTS available:", checkAndroidTTS());
+    GameStorage.addLog('info', '[speakQuestion] text=' + text + ' lang=' + lang + ' androidTTS=' + checkAndroidTTS());
 
     // 直接尝试发音，不再等待Android TTS初始化
     // 因为Java端会在初始化完成后调用 onAndroidTTSReady，我们使用这个标志
@@ -523,28 +522,25 @@ function checkAndroidTTS() {
   var _maxAndroidTtsRetries = 3;
 
   function speakWithAndroidTTS(text, lang) {
-    if (!text) { fallbackToPrompt(''); return; }
+    if (!text) { GameStorage.addLog('warn', 'speakWithAndroidTTS: empty text'); fallbackToPrompt(''); return; }
     lang = lang || 'zh-CN';
-    console.log("[speakWithAndroidTTS] text:", text, "lang:", lang, "retry:", _androidTtsRetryCount);
+    GameStorage.addLog('info', 'AndroidTTS speak: "' + text.substring(0, 20) + '" lang=' + lang);
     try {
       if (!window.AndroidTTS) {
-        console.error('[speakWithAndroidTTS] AndroidTTS not found!');
+        GameStorage.addLog('warn', 'AndroidTTS not found, fallback to Web Speech');
         speakWithWebSpeech(text, lang);
         return;
       }
       window.AndroidTTS.speak(text, lang);
-      console.log('[speakWithAndroidTTS] speak called successfully');
-      // 重置重试计数
+      GameStorage.addLog('info', 'AndroidTTS.speak() called OK');
       _androidTtsRetryCount = 0;
     } catch(e) {
-      console.error('[speakWithAndroidTTS] error:', e);
-      // 重试几次，如果都失败再回退
+      GameStorage.addLog('error', 'AndroidTTS error: ' + e.message);
       if (_androidTtsRetryCount < _maxAndroidTtsRetries) {
         _androidTtsRetryCount++;
-        console.log('[speakWithAndroidTTS] Retrying... (' + _androidTtsRetryCount + '/' + _maxAndroidTtsRetries + ')');
         setTimeout(function() { speakWithAndroidTTS(text, lang); }, 300);
       } else {
-        console.warn('[speakWithAndroidTTS] All retries failed, fallback to Web Speech');
+        GameStorage.addLog('warn', 'AndroidTTS retries exhausted, fallback to Web Speech');
         _androidTtsRetryCount = 0;
         speakWithWebSpeech(text, lang);
       }
@@ -560,10 +556,8 @@ function checkAndroidTTS() {
 
     // 等待语音列表加载完成后播放
     _waitForVoices(function() {
-      console.log("[speakWithWebSpeech] Available voices (" + _voiceList.length + "):", _voiceList.length > 0 ? _voiceList.map(v => v.name + '(' + v.lang + ')') : 'NONE');
-
+      GameStorage.addLog('info', 'WebSpeech: ' + _voiceList.length + ' voices, trying "' + text.substring(0, 20) + '" lang=' + lang);
       try {
-        // 先取消当前播放，清理状态
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         _currentUtter = null;
 
@@ -588,38 +582,35 @@ function checkAndroidTTS() {
         var hasStarted = false;
         utter.onstart = function() {
           hasStarted = true;
-          console.log('[speakWithWebSpeech] started');
+          GameStorage.addLog('info', 'WebSpeech started');
         };
         utter.onend = function() {
-          console.log('[speakWithWebSpeech] ended');
+          GameStorage.addLog('info', 'WebSpeech ended');
           _currentUtter = null;
         };
         utter.onerror = function(e) {
           var err = e.error || (e.type === 'error' ? 'error' : 'unknown');
-          console.error('[speakWithWebSpeech] error:', err);
+          GameStorage.addLog('error', 'WebSpeech error: ' + err);
           _currentUtter = null;
-          // 如果是 interrupted 或 canceled，不用 fallback
           if (err !== 'interrupted' && err !== 'canceled') {
             fallbackToPrompt(text);
           }
         };
 
         _currentUtter = utter;
-        // 确保语音合成恢复（某些浏览器需要）
         if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume();
         if (window.speechSynthesis) {
           window.speechSynthesis.speak(utter);
-          console.log('[speakWithWebSpeech] speak called');
+          GameStorage.addLog('info', 'WebSpeech.speak() called');
         } else {
-          console.error('[speakWithWebSpeech] speechSynthesis not available!');
+          GameStorage.addLog('error', 'speechSynthesis not available');
           fallbackToPrompt(text);
           return;
         }
 
-        // 超时保护：如果 3 秒后还没开始播放，重置状态
         _speakTimeout = setTimeout(function() {
           if (_currentUtter === utter && !hasStarted) {
-            console.warn('[speakWithWebSpeech] Timeout: speech did not start, resetting');
+            GameStorage.addLog('warn', 'WebSpeech timeout');
             try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(ex) {}
             _currentUtter = null;
             _speakTimeout = null;
@@ -627,7 +618,7 @@ function checkAndroidTTS() {
           }
         }, 3000);
       } catch(e) {
-        console.error('[speakWithWebSpeech] exception:', e);
+        GameStorage.addLog('error', 'speakWithWebSpeech exception: ' + e.message);
         _currentUtter = null;
         fallbackToPrompt(text);
       }
@@ -874,21 +865,18 @@ function checkAndroidTTS() {
       showScreen('math-screen');
       MathGame.showMenu();
     } else {
-      console.warn('[goToMathGame] math-screen not found, creating...');
-      GameStorage.addLog('warn', 'math-screen not found, creating element');
-      // 如果math-screen不存在，直接用MathGame的getHtml创建
+      GameStorage.addLog('warn', 'math-screen not found in DOM');
       var container = document.querySelector('.container');
-      if (container && MathGame.getHtml) {
-        var wrapper = document.createElement('div');
-        wrapper.innerHTML = MathGame.getHtml();
-        container.appendChild(wrapper.firstElementChild);
-        GameStorage.addLog('info', 'math-screen created via getHtml');
-        setTimeout(function() {
-          showScreen('math-screen');
-          MathGame.showMenu();
-        }, 100);
+      if (container) {
+        var mathDiv = document.createElement('div');
+        mathDiv.id = 'math-screen';
+        mathDiv.className = 'screen';
+        container.appendChild(mathDiv);
+        GameStorage.addLog('info', 'math-screen div created');
+        showScreen('math-screen');
+        MathGame.showMenu();
       } else {
-        GameStorage.addLog('error', 'Cannot create math-screen - MathGame or container not available');
+        GameStorage.addLog('error', 'Cannot create math-screen - container not found');
         alert('数学游戏加载失败，请重启应用');
       }
     }
