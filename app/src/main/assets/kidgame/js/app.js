@@ -229,6 +229,7 @@ function checkAndroidTTS() {
     document.getElementById('home-coins').textContent = p.coins;
     document.getElementById('home-hints').textContent = p.hints;
     updateFreeTimeDisplay();
+    updateMultiplierDisplay();
 
     ['idiom', 'poem', 'english'].forEach(function(sub) {
       var stars = calcTotalStars(p[sub].stars);
@@ -236,6 +237,20 @@ function checkAndroidTTS() {
       document.getElementById(sub + '-stars').textContent = starStr;
       document.getElementById(sub + '-level').textContent = '第' + p[sub].highestLevel + '关';
     });
+  }
+
+  // 显示当前得分倍数
+  function updateMultiplierDisplay() {
+    var mult = getScoreMultiplier();
+    var multEl = document.getElementById('home-multiplier');
+    if (multEl) {
+      if (mult > 1) {
+        multEl.textContent = '×' + mult.toFixed(1);
+        multEl.style.display = '';
+      } else {
+        multEl.style.display = 'none';
+      }
+    }
   }
 
   function calcTotalStars(starsObj) {
@@ -799,19 +814,32 @@ function checkAndroidTTS() {
     else if (pct >= 0.8) stars = 2;
     else if (pct >= 0.6) stars = 1;
     else { failLevel(); return; }
-    var coins = stars * 10;
+    var baseCoins = stars * 10;
+    // 计算礼物倍数：每个小礼物增加0.1倍，最高2倍
+    var multiplier = getScoreMultiplier();
+    var coins = Math.round(baseCoins * multiplier);
     GameStorage.addCoins(coins);
     GameStorage.saveLevelStars(currentSubject, currentLevel, stars);
-    showResult(stars, coins, true);
+    showResult(stars, coins, multiplier, true);
   }
 
   function failLevel() {
     // 清除倒计时
     clearCountdown();
-    showResult(0, 0, false);
+    showResult(0, 0, 1, false);
   }
 
-  function showResult(stars, coins, success) {
+  // 计算得分倍数：基于拥有的小礼物数量
+  function getScoreMultiplier() {
+    var gifts = GameStorage.getOwnedGifts();
+    var count = gifts.length;
+    if (count === 0) return 1;
+    // 每增加一个小礼物，倍数+0.1，最多+1.0（2倍）
+    var bonus = Math.min(count * 0.1, 1.0);
+    return 1 + bonus;
+  }
+
+  function showResult(stars, coins, multiplier, success) {
     var modal = document.getElementById('result-modal');
     var title = document.getElementById('result-title');
     var starsEl = document.getElementById('result-stars');
@@ -821,7 +849,12 @@ function checkAndroidTTS() {
     if (success) {
       title.textContent = '🎉 恭喜过关！';
       starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-      msg.textContent = '获得 ' + coins + ' 金币！继续加油！';
+      // 显示倍数信息
+      var multText = '';
+      if (multiplier > 1) {
+        multText = ' (×' + multiplier.toFixed(1) + ')';
+      }
+      msg.textContent = '获得 ' + coins + ' 金币！' + multText + '继续加油！';
       if (nextBtn) nextBtn.style.display = '';
       if (homeBtn) homeBtn.style.display = '';
       createConfetti();
@@ -1116,11 +1149,21 @@ function checkAndroidTTS() {
     if (!container) container = document.getElementById('shop-items');
     if (!container) return;
     var owned = GameStorage.getOwnedGifts();
+    var totalBonus = owned.length * 0.1;
     container.innerHTML = '';
+    // 显示倍数加成信息
+    if (owned.length > 0) {
+      var bonusDiv = document.createElement('div');
+      bonusDiv.className = 'shop-bonus-info';
+      bonusDiv.style.cssText = 'background:#e8f5e9;padding:10px 15px;border-radius:8px;margin-bottom:15px;text-align:center;font-size:14px;color:#2e7d32;';
+      bonusDiv.innerHTML = '🎁 已拥有 ' + owned.length + ' 个小礼物<br>得分倍数：×' + (1 + Math.min(totalBonus, 1.0)).toFixed(1);
+      container.appendChild(bonusDiv);
+    }
     gifts.forEach(function(gift) {
-      var owned = GameStorage.hasGift(gift.id);
+      var isOwned = GameStorage.hasGift(gift.id);
       var div = document.createElement('div');
-      div.className = 'shop-item ' + (owned ? 'owned' : '');
+      div.className = 'shop-item ' + (isOwned ? 'owned' : '');
+      var bonusText = isOwned ? '' : '<br><span style="color:#4caf50;font-size:12px;">+0.1倍得分</span>';
       div.innerHTML =
         '<div class="shop-item-icon">' + gift.icon + '</div>' +
         '<div class="shop-item-info">' +
@@ -1128,9 +1171,9 @@ function checkAndroidTTS() {
           '<p>' + gift.desc + '</p>' +
         '</div>' +
         '<div class="shop-item-price">' +
-          (owned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') +
+          (isOwned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') + bonusText +
         '</div>';
-      if (!owned) {
+      if (!isOwned) {
         (function(g) {
           div.onclick = function() { buyGift(g.id); };
         })(gift);
@@ -1321,7 +1364,8 @@ function checkAndroidTTS() {
     clearDebugLog: clearDebugLog,
     goToMathGame: goToMathGame,
     playCorrectSound: playCorrectSound,
-    playWrongSound: playWrongSound
+    playWrongSound: playWrongSound,
+    getScoreMultiplier: getScoreMultiplier
   };
 })();
 
