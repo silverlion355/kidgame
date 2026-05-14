@@ -23,17 +23,6 @@ var _androidTtsKnownUnavailable = false; // 缓存TTS不可用状态，避免重
 var _ttsInitialized = false; // TTS是否已完成初始化尝试
 
 // 监听Android TTS初始化完成事件（由Java端主动调用）
-window.onAndroidTTSReady = function() {
-  console.log('[onAndroidTTSReady] TTS is ready!');
-  _ttsInitialized = true;
-  _androidTtsKnownUnavailable = false; // 重置，因为现在可用了
-  // 如果还有待播放的语音，继续播放
-  if (_pendingSpeak && !_speakRetryTimer) {
-    console.log('[onAndroidTTSReady] Retrying pending speak...');
-    _doSpeakQuestion();
-  }
-};
-
 // 监听Android TTS初始化成功事件
 window.onAndroidTTSReady = function() {
   console.log('[onAndroidTTSReady] TTS initialized successfully');
@@ -79,8 +68,13 @@ window.onAndroidTTSFailed = function() {
 
 function checkAndroidTTS() {
   try {
-    if (!window.AndroidTTS) return false;
+    if (!window.AndroidTTS) {
+      GameStorage.addLog('info', 'checkAndroidTTS: window.AndroidTTS is undefined');
+      return false;
+    }
+    GameStorage.addLog('info', 'checkAndroidTTS: AndroidTTS exists, calling isAvailable()');
     var available = !!(window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    if (typeof DebugLog !== 'undefined') DebugLog.log('isAvailable returned: ' + available);
     GameStorage.addLog('info', 'checkAndroidTTS: available=' + available);
     return available;
   } catch(e) {

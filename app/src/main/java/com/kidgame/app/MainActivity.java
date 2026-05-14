@@ -30,6 +30,14 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Creating activity...");
 
+        // 添加JS调试日志接口
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void log(String msg) {
+                Log.d(TAG, "[JS-LOG] " + msg);
+            }
+        }, "DebugLog");
+
         // Setup WebView first
         webView = findViewById(R.id.webview);
         WebSettings settings = webView.getSettings();
@@ -44,8 +52,10 @@ public class MainActivity extends AppCompatActivity {
         // 设置WebView语音支持
         settings.setMediaPlaybackRequiresUserGesture(false);
 
+        Log.d(TAG, "About to add AndroidTTS interface, tts=" + tts);
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
+        Log.d(TAG, "AndroidTTS interface added");
 
         // Add bridge interface for JS to call native methods
         webView.addJavascriptInterface(new Object() {
@@ -180,6 +190,11 @@ public class MainActivity extends AppCompatActivity {
         public boolean isAvailable() {
             Log.d(TAG, "isAvailable called, returning: " + ttsReady);
             return ttsReady;
+        }
+
+        @JavascriptInterface
+        public String debug() {
+            return "TTSEngine{ready=" + ttsReady + ", tts=" + (tts != null) + "}";
         }
 
         @JavascriptInterface
