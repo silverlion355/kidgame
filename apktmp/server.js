@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 8080;
-const APK_FILE = 'kidgame-v4.0-debug.zip';
+const APK_FILE = 'kidgame-v4.2-debug.zip';
 
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/list') {
