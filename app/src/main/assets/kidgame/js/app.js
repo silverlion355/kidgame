@@ -1163,6 +1163,7 @@ function checkAndroidTTS() {
     }
     gifts.forEach(function(gift) {
       var isOwned = GameStorage.hasGift(gift.id);
+      console.log('[renderShopWithData] processing gift:', gift.id, gift.name, 'isOwned:', isOwned);
       var div = document.createElement('div');
       div.className = 'shop-item' + (isOwned ? ' owned' : '');
 
@@ -1194,6 +1195,8 @@ function checkAndroidTTS() {
           };
         })(gift);
         console.log('[shop] attached onclick to gift:', gift.id, gift.name);
+      } else {
+        console.log('[shop] gift already owned, skipping click:', gift.id);
       }
 
       container.appendChild(div);
