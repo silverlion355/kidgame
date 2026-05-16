@@ -1370,6 +1370,7 @@ function checkAndroidTTS() {
     goHome: goHome,
     updateGiftsDisplay: updateGiftsDisplay,
     initShop: initShop,
+    buyGift: buyGift,
     buyFreeTime: buyFreeTime,
     showUseFreeTimeModal: showUseFreeTimeModal,
     closeUseFreeTimeModal: closeUseFreeTimeModal,
