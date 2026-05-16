@@ -30,6 +30,9 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Creating activity...");
 
+        // Setup WebView first
+        webView = findViewById(R.id.webview);
+
         // 添加JS调试日志接口
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
@@ -38,21 +41,16 @@ public class MainActivity extends AppCompatActivity {
             }
         }, "DebugLog");
 
-        // Setup WebView first
-        webView = findViewById(R.id.webview);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        // 允许访问内容
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setAllowContentAccess(true);
-
-        // 设置WebView语音支持
         settings.setMediaPlaybackRequiresUserGesture(false);
 
-        Log.d(TAG, "About to add AndroidTTS interface, tts=" + tts);
+        Log.d(TAG, "About to add AndroidTTS interface");
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
         Log.d(TAG, "AndroidTTS interface added");
