@@ -98,31 +98,34 @@ public class MainActivity extends AppCompatActivity {
                 if (status == TextToSpeech.SUCCESS) {
                     ttsReady = true;
 
-                    // 设置UtteranceProgressListener来监听语音状态
-                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                        @Override
-                        public void onStart(String utteranceId) {
-                            Log.d(TAG, "TTS started: " + utteranceId);
-                        }
+                    // 设置UtteranceProgressListener来监听语音状态（Android 14+ deprecated）
+                    try {
+                        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                            @Override
+                            public void onStart(String utteranceId) {
+                                Log.d(TAG, "TTS started: " + utteranceId);
+                            }
 
-                        @Override
-                        public void onDone(String utteranceId) {
-                            Log.d(TAG, "TTS completed: " + utteranceId);
-                            // 通知JS语音播放完成
-                            final String id = utteranceId;
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    webView.evaluateJavascript("if(window.onTTSComplete) window.onTTSComplete('" + id + "');", null);
-                                }
-                            });
-                        }
+                            @Override
+                            public void onDone(String utteranceId) {
+                                Log.d(TAG, "TTS completed: " + utteranceId);
+                                final String id = utteranceId;
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        webView.evaluateJavascript("if(window.onTTSComplete) window.onTTSComplete('" + id + "');", null);
+                                    }
+                                });
+                            }
 
-                        @Override
-                        public void onError(String utteranceId) {
-                            Log.e(TAG, "TTS error: " + utteranceId);
-                        }
-                    });
+                            @Override
+                            public void onError(String utteranceId) {
+                                Log.e(TAG, "TTS error: " + utteranceId);
+                            }
+                        });
+                    } catch (Exception e) {
+                        Log.w(TAG, "setOnUtteranceProgressListener not available: " + e.getMessage());
+                    }
 
                     // 测试语音是否可用
                     int enResult = tts.isLanguageAvailable(Locale.US);
@@ -145,16 +148,21 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 添加系统返回键和手势支持
+        // 添加系统返回键和手势支持（Android 13+）
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 Log.d(TAG, "Back pressed, webView.canGoBack=" + webView.canGoBack());
-                if (webView.canGoBack()) {
-                    webView.goBack();
-                } else {
-                    // 通知JS处理返回
-                    webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack(); else finish();", null);
+                try {
+                    if (webView.canGoBack()) {
+                        webView.goBack();
+                    } else {
+                        // 通知JS处理返回
+                        webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack(); else finish();", null);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Back handling error: " + e.getMessage());
+                    finish();
                 }
             }
         });
