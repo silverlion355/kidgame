@@ -15,6 +15,23 @@ const MathGame = (function() {
   var MAX_LEVEL = 20;
   var timer = null;
 
+  // 触摸滑动手势
+  var touchStartX = 0;
+  function initSwipeHandler() {
+    var screen = document.getElementById('math-screen');
+    if (!screen) return;
+    screen.ontouchstart = function(e) {
+      if (e.touches && e.touches[0]) touchStartX = e.touches[0].clientX;
+    };
+    screen.ontouchend = function(e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      if (dx > 80 && Math.abs(e.changedTouches[0].clientY - touchStartX) < 100) {
+        goBack();
+      }
+    };
+  }
+
   // ===== 工具函数 =====
   function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -303,20 +320,39 @@ const MathGame = (function() {
     return html;
   }
 
+  // ===== 计算得分倍数 =====
+  function getScoreMultiplier() {
+    var gifts = GameStorage.getOwnedGifts();
+    return 1 + Math.min(gifts.length * 0.1, 1.0);
+  }
+
+  // ===== 计算金币奖励 =====
+  function calculateCoins() {
+    var mult = getScoreMultiplier();
+    // 每10分得1金币
+    var baseCoins = Math.floor(score / 10);
+    return Math.max(1, Math.round(baseCoins * mult));
+  }
+
   // ===== 渲染关卡完成 =====
   function renderLevelComplete() {
     var stars = levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.8 ? 3 : (levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.5 ? 2 : 1);
     var starsStr = '';
     for (var i = 0; i < 3; i++) starsStr += i < stars ? '★' : '☆';
     var msg = stars >= 3 ? '太厉害了！' : (stars >= 2 ? '不错，继续加油！' : '再试一次吧！');
+    var coins = calculateCoins();
+    var mult = getScoreMultiplier();
 
     // 保存星级
     saveLevelStars(currentGame, currentLevel, stars);
+    // 奖励金币
+    GameStorage.addCoins(coins);
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>过关啦！</h2>' +
       '<div style="font-size:48px;margin:20px 0;">' + starsStr + '</div>' +
       '<p style="font-size:20px;">第 ' + currentLevel + ' 关 完成！</p>' +
+      '<p>获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
         '<button class="modal-btn" onclick="MathGame.nextLevel()">下一关</button>' +
@@ -333,10 +369,13 @@ const MathGame = (function() {
       if (progress.stars[i]) totalStars += progress.stars[i];
     }
     var msg = correctCount >= TOTAL_QUESTIONS * 0.8 ? '太厉害了！' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '不错，继续加油！' : '再试一次吧！');
+    var coins = calculateCoins();
+    var mult = getScoreMultiplier();
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>本轮结束！</h2>' +
       '<p style="font-size:20px;">总得分: ' + score + '</p>' +
+      '<p>获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') + '</p>' +
       '<p>答对: ' + correctCount + ' / ' + TOTAL_QUESTIONS + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
@@ -427,6 +466,19 @@ const MathGame = (function() {
       document.getElementById('math-game-area').style.display = 'block';
       document.getElementById('math-game-area').innerHTML = renderGameArea();
       document.getElementById('math-level-grid').style.display = 'none';
+      initSwipeHandler();
+    },
+
+    // 添加滑动手势返回
+    goBack: function() {
+      var gameArea = document.getElementById('math-game-area');
+      var levelGrid = document.getElementById('math-level-grid');
+      if (!gameArea) { showMenu(); return; }
+      if (gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
+        confirmExit();
+      } else {
+        showMenu();
+      }
     },
 
     nextLevel: function() {
@@ -502,13 +554,15 @@ const MathGame = (function() {
 
     getHtml: function() {
       return renderMathMenu();
-    }
+    },
+
+    goBack: goBack
   };
 
   // ===== 渲染主菜单 =====
   function renderMathMenu() {
     return '<div class="top-bar">' +
-      '<button class="btn-back" onclick="App.showScreen(\'home-screen\')">‹</button>' +
+      '<button class="btn-back" onclick="MathGame.goBack()">‹</button>' +
       '<h3>数学小游戏</h3>' +
       '<div></div>' +
     '</div>' +

@@ -1156,22 +1156,34 @@ function checkAndroidTTS() {
     gifts.forEach(function(gift) {
       var isOwned = GameStorage.hasGift(gift.id);
       var div = document.createElement('div');
-      div.className = 'shop-item ' + (isOwned ? 'owned' : '');
-      var bonusText = isOwned ? '' : '<br><span style="color:#4caf50;font-size:12px;">+0.1倍得分</span>';
-      div.innerHTML =
-        '<div class="shop-item-icon">' + gift.icon + '</div>' +
-        '<div class="shop-item-info">' +
-          '<h4>' + gift.name + '</h4>' +
-          '<p>' + gift.desc + '</p>' +
-        '</div>' +
-        '<div class="shop-item-price">' +
-          (isOwned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') + bonusText +
-        '</div>';
+      div.className = 'shop-item' + (isOwned ? ' owned' : '');
+
+      var iconDiv = document.createElement('div');
+      iconDiv.className = 'shop-item-icon';
+      iconDiv.innerHTML = gift.icon;
+      div.appendChild(iconDiv);
+
+      var infoDiv = document.createElement('div');
+      infoDiv.className = 'shop-item-info';
+      infoDiv.innerHTML = '<h4>' + gift.name + '</h4><p>' + gift.desc + '</p>';
+      div.appendChild(infoDiv);
+
+      var priceDiv = document.createElement('div');
+      priceDiv.className = 'shop-item-price';
+      if (isOwned) {
+        priceDiv.innerHTML = '<span class="owned-badge">已拥有</span>';
+      } else {
+        priceDiv.innerHTML = gift.price + ' 🪙<br><span style="color:#4caf50;font-size:12px;">+0.1倍得分</span>';
+      }
+      div.appendChild(priceDiv);
+
       if (!isOwned) {
         (function(g) {
-          div.onclick = function() { buyGift(g.id); };
+          div.style.cursor = 'pointer';
+          div.addEventListener('click', function() { buyGift(g.id); }, false);
         })(gift);
       }
+
       container.appendChild(div);
     });
   }
