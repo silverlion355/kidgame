@@ -472,9 +472,14 @@ const MathGame = (function() {
     // 添加滑动手势返回
     goBack: function() {
       var screen = document.getElementById('math-screen');
-      if (!screen) return;
+      if (!screen) {
+        console.log('[goBack] math-screen not found');
+        return;
+      }
       var gameArea = document.getElementById('math-game-area');
       var levelGrid = document.getElementById('math-level-grid');
+      console.log('[goBack] gameArea:', gameArea ? gameArea.style.display : 'null', 'levelGrid:', levelGrid ? levelGrid.style.display : 'null');
+
       if (gameArea && gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
         // 在游戏中，确认退出
         this.confirmExit();
@@ -482,10 +487,14 @@ const MathGame = (function() {
         // 返回主菜单或隐藏
         screen.className = 'screen';
         if (currentGame === null) {
-          // 从主菜单返回，直接隐藏
+          // 从主菜单返回，直接隐藏并回到首页
           screen.style.display = 'none';
+          if (typeof App !== 'undefined' && App.showScreen) {
+            App.showScreen('home-screen');
+          }
         } else {
           // 从游戏子菜单返回，显示主菜单
+          currentGame = null;
           screen.innerHTML = renderMathMenu();
         }
       }

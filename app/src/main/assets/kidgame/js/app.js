@@ -1188,12 +1188,7 @@ function checkAndroidTTS() {
 
       if (!isOwned) {
         div.style.cursor = 'pointer';
-        div.onclick = (function(g) {
-          return function() {
-            console.log('[shop onclick] buying gift:', g.id, g.name);
-            buyGift(g.id);
-          };
-        })(gift);
+        div.setAttribute('onclick', "App.buyGift('" + gift.id + "')");
         console.log('[shop] attached onclick to gift:', gift.id, gift.name);
       } else {
         console.log('[shop] gift already owned, skipping click:', gift.id);
