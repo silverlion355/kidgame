@@ -994,8 +994,10 @@ function checkAndroidTTS() {
   // ===== 商店 =====
 
   function showShop() {
+    console.log('[showShop] called');
     showScreen('shop-screen');
     setTimeout(function() {
+      console.log('[showShop] timeout - rendering shop');
       renderShop();
       updateShopCoins();
       updateShopFreeTime();
@@ -1140,6 +1142,7 @@ function checkAndroidTTS() {
 
   function renderShop() {
     var container = document.getElementById('shop-items');
+    console.log('[renderShop] container:', container ? 'found' : 'NOT FOUND');
     if (!container) return;
     renderShopWithData(getGiftsInline(), container);
   }
@@ -1184,17 +1187,18 @@ function checkAndroidTTS() {
 
       if (!isOwned) {
         div.style.cursor = 'pointer';
-        div.setAttribute('data-gift-id', gift.id);
-        div.onclick = function() {
-          var id = this.getAttribute('data-gift-id');
-          console.log('[shop click] buying gift:', id);
-          buyGift(id);
-        };
-        console.log('[shop] attached click to gift:', gift.id, gift.name);
+        div.onclick = (function(g) {
+          return function() {
+            console.log('[shop onclick] buying gift:', g.id, g.name);
+            buyGift(g.id);
+          };
+        })(gift);
+        console.log('[shop] attached onclick to gift:', gift.id, gift.name);
       }
 
       container.appendChild(div);
     });
+    console.log('[shop] renderShopWithData done, rendered', gifts.length, 'gifts');
   }
 
   function updateGiftsDisplay() {
