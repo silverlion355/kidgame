@@ -1097,9 +1097,14 @@ function checkAndroidTTS() {
   }
 
   function buyGift(itemId) {
+    console.log('[buyGift] called with:', itemId);
     var gifts = getGiftsInline();
     var gift = gifts.find(function(g) { return g.id === itemId; });
-    if (!gift) return;
+    console.log('[buyGift] gift:', gift);
+    if (!gift) {
+      console.log('[buyGift] gift not found!');
+      return;
+    }
     if (GameStorage.hasGift(itemId)) {
       alert('你已经拥有这个礼物了！');
       return;
@@ -1116,6 +1121,11 @@ function checkAndroidTTS() {
     } else {
       alert('金币不足！' + gift.name + '需要 ' + gift.price + ' 金币。');
     }
+  }
+
+  // Inline version for onclick attribute - same as buyGift but accessible from HTML
+  function buyGiftInline(itemId) {
+    buyGift(itemId);
   }
 
   function getGiftsInline() {
@@ -1167,11 +1177,9 @@ function checkAndroidTTS() {
         '<div class="shop-item-price">' +
           (isOwned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') + bonusText +
         '</div>';
-      if (!isOwned) {
-        (function(g) {
-          div.onclick = function() { buyGift(g.id); };
-        })(gift);
-      }
+      // Use onclick attribute in HTML for better WebView compatibility
+      div.setAttribute('onclick', "(function(){ try { App.buyGiftInline('" + gift.id + "'); } catch(e) { console.error(e); } })()");
+      div.style.cursor = 'pointer';
       container.appendChild(div);
     });
   }
@@ -1359,7 +1367,8 @@ function checkAndroidTTS() {
     goToMathGame: goToMathGame,
     playCorrectSound: playCorrectSound,
     playWrongSound: playWrongSound,
-    getScoreMultiplier: getScoreMultiplier
+    getScoreMultiplier: getScoreMultiplier,
+    buyGiftInline: buyGiftInline
   };
 })();
 

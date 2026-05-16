@@ -15,6 +15,47 @@ const MathGame = (function() {
   var MAX_LEVEL = 20;
   var timer = null;
 
+  // ===== 触摸滑动手势返回 =====
+  var touchStartX = 0;
+  var touchStartY = 0;
+  var touchStartTime = 0;
+
+  function initSwipeHandler() {
+    var screen = document.getElementById('math-screen');
+    if (!screen) return;
+
+    screen.addEventListener('touchstart', function(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
+    screen.addEventListener('touchend', function(e) {
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      var dy = e.changedTouches[0].clientY - touchStartY;
+      var dt = Date.now() - touchStartTime;
+      // 只响应从左向右滑，且幅度>50px，时间<300ms
+      if (dx > 50 && dy < 80 && dt < 300) {
+        MathGame.handleSwipeBack();
+      }
+    }, { passive: true });
+  }
+
+  function handleSwipeBack() {
+    var gameArea = document.getElementById('math-game-area');
+    var levelGrid = document.getElementById('math-level-grid');
+    if (!gameArea) return;
+
+    // 在游戏中：显示退出确认
+    if (gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
+      MathGame.confirmExit();
+    }
+    // 在关卡选择：返回主菜单
+    else if (levelGrid && levelGrid.style.display !== 'none') {
+      MathGame.showMenu();
+    }
+  }
+
   // ===== 工具函数 =====
   function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -313,10 +354,19 @@ const MathGame = (function() {
     // 保存星级
     saveLevelStars(currentGame, currentLevel, stars);
 
+    // 计算金币奖励
+    var baseCoins = stars * 10;
+    var multiplier = MathGame.getScoreMultiplier();
+    var coins = Math.round(baseCoins * multiplier);
+    GameStorage.addCoins(coins);
+
+    var multText = multiplier > 1 ? ' (×' + multiplier.toFixed(1) + ')' : '';
+
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>过关啦！</h2>' +
       '<div style="font-size:48px;margin:20px 0;">' + starsStr + '</div>' +
       '<p style="font-size:20px;">第 ' + currentLevel + ' 关 完成！</p>' +
+      '<p style="color:#4caf50;font-size:18px;">获得 ' + coins + ' 金币！' + multText + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
         '<button class="modal-btn" onclick="MathGame.nextLevel()">下一关</button>' +
@@ -334,9 +384,15 @@ const MathGame = (function() {
     }
     var msg = correctCount >= TOTAL_QUESTIONS * 0.8 ? '太厉害了！' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '不错，继续加油！' : '再试一次吧！');
 
+    // 计算总金币
+    var multiplier = MathGame.getScoreMultiplier();
+    var totalCoins = Math.round(correctCount * 10 * multiplier);
+    var multText = multiplier > 1 ? ' (×' + multiplier.toFixed(1) + ')' : '';
+
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>本轮结束！</h2>' +
-      '<p style="font-size:20px;">总得分: ' + score + '</p>' +
+      '<p style="font-size:24px;">总得分: ' + score + '</p>' +
+      '<p style="color:#4caf50;font-size:18px;">获得 ' + totalCoins + ' 金币！' + multText + '</p>' +
       '<p>答对: ' + correctCount + ' / ' + TOTAL_QUESTIONS + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
@@ -356,6 +412,15 @@ const MathGame = (function() {
         '<button class="modal-btn secondary" onclick="MathGame.resumeGame()" style="margin-top:8px;">继续答题</button>' +
       '</div>' +
     '</div>';
+  }
+
+  // ===== 计算得分倍数：基于拥有的小礼物数量
+  function getScoreMultiplier() {
+    var gifts = GameStorage.getOwnedGifts();
+    var count = gifts.length;
+    if (count === 0) return 1;
+    var bonus = Math.min(count * 0.1, 1.0);
+    return 1 + bonus;
   }
 
   // ===== 公开接口 =====
@@ -386,6 +451,7 @@ const MathGame = (function() {
           if (s.id !== 'math-screen') s.classList.remove('active');
         });
         GameStorage.addLog('info', 'MathGame.showMenu done');
+        setTimeout(initSwipeHandler, 100);
       } catch(e) {
         GameStorage.addLog('error', 'MathGame.showMenu error: ' + e.message);
         console.error('[MathGame.showMenu] error:', e);
@@ -413,7 +479,7 @@ const MathGame = (function() {
       screen.className = 'screen active';
       screen.innerHTML = renderLevelSelect();
 
-      setTimeout(function() { renderLevelButtons(); }, 50);
+      setTimeout(function() { renderLevelButtons(); initSwipeHandler(); }, 50);
     },
 
     startLevel: function(level) {
@@ -427,6 +493,7 @@ const MathGame = (function() {
       document.getElementById('math-game-area').style.display = 'block';
       document.getElementById('math-game-area').innerHTML = renderGameArea();
       document.getElementById('math-level-grid').style.display = 'none';
+      setTimeout(initSwipeHandler, 100);
     },
 
     nextLevel: function() {
@@ -461,6 +528,10 @@ const MathGame = (function() {
     confirmExit: function() {
       document.getElementById('math-game-area').innerHTML = renderExitConfirm();
     },
+
+    handleSwipeBack: handleSwipeBack,
+
+    initSwipeHandler: initSwipeHandler,
 
     checkAnswer: function(selected) {
       var correct = false;
@@ -502,6 +573,10 @@ const MathGame = (function() {
 
     getHtml: function() {
       return renderMathMenu();
+    },
+
+    getScoreMultiplier: function() {
+      return getScoreMultiplier();
     }
   };
 
