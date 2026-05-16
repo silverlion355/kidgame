@@ -25,18 +25,20 @@ const MathGame = (function() {
     if (!screen) return;
 
     screen.addEventListener('touchstart', function(e) {
+      if (!e.touches || !e.touches[0]) return;
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
       touchStartTime = Date.now();
     }, { passive: true });
 
     screen.addEventListener('touchend', function(e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
       var dx = e.changedTouches[0].clientX - touchStartX;
       var dy = e.changedTouches[0].clientY - touchStartY;
       var dt = Date.now() - touchStartTime;
       // 只响应从左向右滑，且幅度>50px，时间<300ms
       if (dx > 50 && dy < 80 && dt < 300) {
-        MathGame.handleSwipeBack();
+        try { handleSwipeBack(); } catch(e) { console.log('[swipe] error:', e); }
       }
     }, { passive: true });
   }
@@ -48,11 +50,11 @@ const MathGame = (function() {
 
     // 在游戏中：显示退出确认
     if (gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
-      MathGame.confirmExit();
+      confirmExit();
     }
     // 在关卡选择：返回主菜单
     else if (levelGrid && levelGrid.style.display !== 'none') {
-      MathGame.showMenu();
+      showMenu();
     }
   }
 

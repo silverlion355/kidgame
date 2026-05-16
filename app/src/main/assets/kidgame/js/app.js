@@ -1177,9 +1177,13 @@ function checkAndroidTTS() {
         '<div class="shop-item-price">' +
           (isOwned ? '<span class="owned-badge">已拥有</span>' : gift.price + ' 🪙') + bonusText +
         '</div>';
-      // Use onclick attribute in HTML for better WebView compatibility
-      div.setAttribute('onclick', "(function(){ try { App.buyGiftInline('" + gift.id + "'); } catch(e) { console.error(e); } })()");
-      div.style.cursor = 'pointer';
+      if (!isOwned) {
+        // Use IIFE to capture gift.id
+        (function(g) {
+          div.onclick = function() { App.buyGiftInline(g.id); };
+        })(gift);
+        div.style.cursor = 'pointer';
+      }
       container.appendChild(div);
     });
   }
