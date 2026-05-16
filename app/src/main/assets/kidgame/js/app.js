@@ -1178,10 +1178,13 @@ function checkAndroidTTS() {
       div.appendChild(priceDiv);
 
       if (!isOwned) {
-        (function(g) {
-          div.style.cursor = 'pointer';
-          div.addEventListener('click', function() { buyGift(g.id); }, false);
-        })(gift);
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', (function(g) {
+          return function() {
+            console.log('[buyGift] clicked gift:', g.id, g.name);
+            buyGift(g.id);
+          };
+        })(gift));
       }
 
       container.appendChild(div);

@@ -471,13 +471,23 @@ const MathGame = (function() {
 
     // 添加滑动手势返回
     goBack: function() {
+      var screen = document.getElementById('math-screen');
+      if (!screen) return;
       var gameArea = document.getElementById('math-game-area');
       var levelGrid = document.getElementById('math-level-grid');
-      if (!gameArea) { showMenu(); return; }
-      if (gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
-        confirmExit();
+      if (gameArea && gameArea.style.display !== 'none' && levelGrid && levelGrid.style.display === 'none') {
+        // 在游戏中，确认退出
+        this.confirmExit();
       } else {
-        showMenu();
+        // 返回主菜单或隐藏
+        screen.className = 'screen';
+        if (currentGame === null) {
+          // 从主菜单返回，直接隐藏
+          screen.style.display = 'none';
+        } else {
+          // 从游戏子菜单返回，显示主菜单
+          screen.innerHTML = renderMathMenu();
+        }
       }
     },
 
@@ -554,9 +564,7 @@ const MathGame = (function() {
 
     getHtml: function() {
       return renderMathMenu();
-    },
-
-    goBack: goBack
+    }
   };
 
   // ===== 渲染主菜单 =====
