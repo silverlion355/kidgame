@@ -1097,9 +1097,14 @@ function checkAndroidTTS() {
   }
 
   function buyGift(itemId) {
+    console.log('[buyGift] called with itemId:', itemId);
     var gifts = getGiftsInline();
     var gift = gifts.find(function(g) { return g.id === itemId; });
-    if (!gift) return;
+    console.log('[buyGift] found gift:', gift);
+    if (!gift) {
+      alert('礼物不存在！');
+      return;
+    }
     if (GameStorage.hasGift(itemId)) {
       alert('你已经拥有这个礼物了！');
       return;
@@ -1179,12 +1184,13 @@ function checkAndroidTTS() {
 
       if (!isOwned) {
         div.style.cursor = 'pointer';
-        div.addEventListener('click', (function(g) {
-          return function() {
-            console.log('[buyGift] clicked gift:', g.id, g.name);
-            buyGift(g.id);
-          };
-        })(gift));
+        div.setAttribute('data-gift-id', gift.id);
+        div.onclick = function() {
+          var id = this.getAttribute('data-gift-id');
+          console.log('[shop click] buying gift:', id);
+          buyGift(id);
+        };
+        console.log('[shop] attached click to gift:', gift.id, gift.name);
       }
 
       container.appendChild(div);

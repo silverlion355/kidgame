@@ -537,7 +537,7 @@ const MathGame = (function() {
       if (correct) {
         correctCount++;
         levelCorrectCount++;
-        score += currentGame === '24points' ? 20 : 10;
+        score += 30;
         App.playCorrectSound();
       } else {
         App.playWrongSound();
