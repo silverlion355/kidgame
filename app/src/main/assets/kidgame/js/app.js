@@ -1397,6 +1397,10 @@ function checkAndroidTTS() {
     updateGiftsDisplay: updateGiftsDisplay,
     initShop: initShop,
     buyGift: buyGift,
+    testBuyGift: function() {
+      console.log('[testBuyGift] called');
+      buyGift('gift_001');
+    },
     buyFreeTime: buyFreeTime,
     showUseFreeTimeModal: showUseFreeTimeModal,
     closeUseFreeTimeModal: closeUseFreeTimeModal,
