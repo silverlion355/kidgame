@@ -223,6 +223,7 @@ function checkAndroidTTS() {
     document.getElementById('home-coins').textContent = p.coins;
     document.getElementById('home-hints').textContent = p.hints;
     updateFreeTimeDisplay();
+    updateGiftsDisplay();
     updateMultiplierDisplay();
 
     ['idiom', 'poem', 'english'].forEach(function(sub) {
@@ -1245,7 +1246,7 @@ function checkAndroidTTS() {
       if (!gift) return;
       var span = document.createElement('span');
       span.className = 'gift-icon';
-      span.textContent = gift.icon;
+      span.innerHTML = gift.icon;
       span.title = gift.name;
       wrap.appendChild(span);
     });
@@ -1397,10 +1398,6 @@ function checkAndroidTTS() {
     updateGiftsDisplay: updateGiftsDisplay,
     initShop: initShop,
     buyGift: buyGift,
-    testBuyGift: function() {
-      console.log('[testBuyGift] called');
-      buyGift('gift_001');
-    },
     buyFreeTime: buyFreeTime,
     showUseFreeTimeModal: showUseFreeTimeModal,
     closeUseFreeTimeModal: closeUseFreeTimeModal,

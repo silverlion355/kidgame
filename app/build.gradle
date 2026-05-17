@@ -11,10 +11,24 @@ android {
         versionName "1.17"
     }
 
+    signingConfigs {
+        release {
+            storeFile file("${System.getenv("KEYSTORE_FILE") ?: "kidgame.p12"}")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "kidgame123"
+            keyAlias System.getenv("KEY_ALIAS") ?: "kidgame"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "kidgame123"
+            storeType "PKCS12"
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
         }
     }
 }

@@ -22,3 +22,6 @@ Thumbs.db
 
 # Gradle wrapper
 !gradle/wrapper/gradle-wrapper.jar
+
+# Keystore (keep for consistent signing)
+# !kidgame.p12
