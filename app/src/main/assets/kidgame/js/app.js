@@ -996,12 +996,21 @@ function checkAndroidTTS() {
   function showShop() {
     console.log('[showShop] called');
     showScreen('shop-screen');
+    console.log('[showShop] after showScreen');
     setTimeout(function() {
       console.log('[showShop] timeout - rendering shop');
+      var container = document.getElementById('shop-items');
+      console.log('[showShop] container:', container ? 'found' : 'NOT FOUND');
+      if (!container) {
+        console.log('[showShop] ERROR: shop-items container not found!');
+        return;
+      }
       renderShop();
+      console.log('[showShop] after renderShop');
       updateShopCoins();
       updateShopFreeTime();
-    }, 50);
+      console.log('[showShop] done');
+    }, 100);
   }
 
   function hideShop() {
@@ -1194,13 +1203,19 @@ function checkAndroidTTS() {
 
       if (!isOwned) {
         div.style.cursor = 'pointer';
-        (function(id, name) {
-          div.addEventListener('click', function(e) {
-            console.log('[shop click] clicked gift:', id, name);
-            App.buyGift(id);
-          });
-        })(gift.id, gift.name);
-        console.log('[shop] attached click listener to gift:', gift.id, gift.name);
+        var clickHandler = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[shop click] clicked gift:', gift.id, gift.name);
+          App.buyGift(gift.id);
+        };
+        // Add click to the main div
+        div.addEventListener('click', clickHandler);
+        // Also add click to child elements to ensure bubbling works
+        iconDiv.addEventListener('click', clickHandler);
+        infoDiv.addEventListener('click', clickHandler);
+        priceDiv.addEventListener('click', clickHandler);
+        console.log('[shop] attached click listeners to gift:', gift.id, gift.name);
       } else {
         console.log('[shop] gift already owned, skipping click:', gift.id);
       }
