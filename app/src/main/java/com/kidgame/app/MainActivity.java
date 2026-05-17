@@ -5,6 +5,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.AlertDialog;
+import android.webkit.ConfirmDialog;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
@@ -84,6 +87,48 @@ public class MainActivity extends AppCompatActivity {
                 if (ttsReady) {
                     notifyTTSReady();
                 }
+            }
+        });
+
+        // Enable JavaScript dialogs (alert, confirm, prompt)
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
+                Log.d(TAG, "[JS Alert] " + message);
+                new AlertDialog.Builder(MainActivity.this)
+                    .setMessage(message)
+                    .setPositiveButton("确定", null)
+                    .setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(android.content.DialogInterface dialog) {
+                            result.confirm();
+                        }
+                    })
+                    .create()
+                    .show();
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, android.webkit.JsResult result) {
+                Log.d(TAG, "[JS Confirm] " + message);
+                new AlertDialog.Builder(MainActivity.this)
+                    .setMessage(message)
+                    .setPositiveButton("确定", new android.content.DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(android.content.DialogInterface dialog, int which) {
+                            result.confirm();
+                        }
+                    })
+                    .setNegativeButton("取消", new android.content.DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(android.content.DialogInterface dialog, int which) {
+                            result.cancel();
+                        }
+                    })
+                    .create()
+                    .show();
+                return true;
             }
         });
 
