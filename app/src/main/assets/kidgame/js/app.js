@@ -1100,6 +1100,7 @@ function checkAndroidTTS() {
 
   function buyGift(itemId) {
     console.log('[buyGift] called with itemId:', itemId);
+    if (typeof DebugLog !== 'undefined') DebugLog.log('[buyGift] start, itemId=' + itemId);
     var gifts = getGiftsInline();
     var gift = gifts.find(function(g) { return g.id === itemId; });
     console.log('[buyGift] found gift:', gift);
@@ -1111,15 +1112,20 @@ function checkAndroidTTS() {
       alert('你已经拥有这个礼物了！');
       return;
     }
-    if (!confirm('确认花费 ' + gift.price + ' 🪙 购买 ' + gift.icon + ' ' + gift.name + ' 吗？')) {
+    console.log('[buyGift] showing confirm dialog...');
+    var confirmed = confirm('确认花费 ' + gift.price + ' 🪙 购买 ' + gift.name + ' 吗？');
+    console.log('[buyGift] confirm result:', confirmed);
+    if (!confirmed) {
+      console.log('[buyGift] user cancelled');
       return;
     }
+    console.log('[buyGift] proceeding with purchase...');
     if (GameStorage.spendCoins(gift.price)) {
       GameStorage.buyGift(itemId);
       updateShopCoins();
       renderShop();
       updateGiftsDisplay();
-      alert('购买成功！获得 ' + gift.icon + ' ' + gift.name + ' 🎉');
+      alert('购买成功！获得 ' + gift.name + ' 🎉');
     } else {
       alert('金币不足！' + gift.name + '需要 ' + gift.price + ' 金币。');
     }
@@ -1188,12 +1194,13 @@ function checkAndroidTTS() {
 
       if (!isOwned) {
         div.style.cursor = 'pointer';
-        div.onclick = (function(id) {
-          return function() {
+        (function(id, name) {
+          div.addEventListener('click', function(e) {
+            console.log('[shop click] clicked gift:', id, name);
             App.buyGift(id);
-          };
-        })(gift.id);
-        console.log('[shop] attached onclick to gift:', gift.id, gift.name);
+          });
+        })(gift.id, gift.name);
+        console.log('[shop] attached click listener to gift:', gift.id, gift.name);
       } else {
         console.log('[shop] gift already owned, skipping click:', gift.id);
       }
