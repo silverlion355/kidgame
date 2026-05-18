@@ -269,8 +269,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 if (!ttsReady) {
-                    Log.w(TAG, "TTS init timeout - still not ready after 5s, notifying failed");
+                    jsLog("warn", "TTS", "TTS init timeout - still not ready after 5s! tts=" + (tts!=null) + ", calling notifyTTSFailed");
+                    Log.w(TAG, "TTS init timeout - still not ready after 5s, tts=" + (tts!=null) + ", notifying failed");
                     notifyTTSFailed();
+                } else {
+                    jsLog("info", "TTS", "TTS init timeout check: already ready, skipping");
                 }
             }
         }, 5000);
@@ -378,11 +381,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize Android TTS
         try {
+            jsLog("info", "TTS", "initTTS: BEFORE new TextToSpeech()");
+            Log.d(TAG, "initTTS: BEFORE new TextToSpeech()");
             tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
                 @Override
                 public void onInit(int status) {
-                    jsLog("info", "TTS", "onInit callback: status=" + status + " (SUCCESS=" + TextToSpeech.SUCCESS + ")");
-                    Log.d(TAG, "onInit callback: status=" + status + " (SUCCESS=" + TextToSpeech.SUCCESS + ")");
+                    jsLog("info", "TTS", "initTTS: AFTER new TextToSpeech() - onInit called with status=" + status);
+                    Log.d(TAG, "initTTS: AFTER new TextToSpeech() - onInit called with status=" + status);
                     if (status == TextToSpeech.SUCCESS) {
                         // 首先检查默认引擎
                         String currentEngine = tts.getDefaultEngine();
@@ -436,6 +441,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
+            jsLog("info", "TTS", "initTTS: TextToSpeech constructor called, waiting for onInit...");
         } catch (Exception e) {
             jsLog("error", "TTS", "TextToSpeech constructor threw: " + e.getMessage());
             Log.e(TAG, "TextToSpeech constructor threw: " + e.getMessage());
