@@ -296,9 +296,9 @@ public class MainActivity extends AppCompatActivity {
             String defaultLocale = android.provider.Settings.Secure.getString(getContentResolver(), "tts_default_locale");
             jsLog("info", "TTS", "tts_default_locale=" + defaultLocale);
 
-            // Try reading TTS speech rate
-            int speechRate = android.provider.Settings.Secure.getInt(getContentResolver(), android.provider.Settings.Secure.TTS_SPEECH_RATE, -1);
-            jsLog("info", "TTS", "TTS_SPEECH_RATE=" + speechRate);
+            // Try reading TTS speech rate (use hardcoded string - TTS_SPEECH_RATE is not a public SDK constant)
+            String speechRateStr = android.provider.Settings.Secure.getString(getContentResolver(), "tts_default_speech_rate");
+            jsLog("info", "TTS", "tts_default_speech_rate=" + speechRateStr);
 
         } catch (Exception e) {
             jsLog("warn", "TTS", "Settings query error: " + e.getMessage());
