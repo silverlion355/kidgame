@@ -210,58 +210,63 @@ public class MainActivity extends AppCompatActivity {
 
         // Avoid multiple simultaneous init attempts
         if (tts != null && ttsReady) {
-            jsLog("info", "TTS", "TTS already initialized (tts=" + (tts!=null) + ", ready=" + ttsReady + "), skipping");
-            Log.d(TAG, "TTS already initialized, skipping");
+            jsLog("info", "TTS", "TTS already initialized, skipping");
             return;
         }
 
-        // Check if TTS engine is available using standard query
-        Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
         PackageManager pm = getPackageManager();
-        java.util.List<android.content.pm.ResolveInfo> resolveInfos = pm.queryIntentServices(checkIntent, 0);
 
-        int engineCount = (resolveInfos == null) ? 0 : resolveInfos.size();
-        jsLog("info", "TTS", "queryIntentServices(ACTION_CHECK_TTS_DATA) returned " + engineCount + " engines");
-        Log.d(TAG, "checkAndInitTTS: queryIntentServices returned " + engineCount + " engines");
-
-        // Log ALL services that handle TTS-related intents to help debug
-        String[] ttsIntents = {
-            "android.speech.tts.engine.TTS_DATA",  //Xiaomi
-            "android.intent.action.TTS_SERVICE",
-            "com.android.tts.service.TTSService",
-            "android.speech.tts.TextToSpeechService"
-        };
-        for (String action : ttsIntents) {
-            try {
-                Intent testIntent = new Intent(action);
-                java.util.List<android.content.pm.ResolveInfo> resolved = pm.queryIntentServices(testIntent, 0);
-                int count = (resolved == null) ? 0 : resolved.size();
-                if (count > 0) {
-                    for (android.content.pm.ResolveInfo ri : resolved) {
-                        jsLog("info", "TTS", "Found TTS service: " + ri.serviceInfo.packageName + " for action: " + action);
-                        Log.d(TAG, "Found TTS service: " + ri.serviceInfo.packageName + " for action: " + action);
-                    }
-                }
-            } catch (Exception e) { }
-        }
-
-        if (resolveInfos == null || resolveInfos.isEmpty()) {
-            jsLog("warn", "TTS", "No TTS engine found via ACTION_CHECK_TTS_DATA, but will try direct init anyway");
-            Log.w(TAG, "No TTS engine found via standard query, proceeding with direct init");
-        } else {
-            StringBuilder engineInfo = new StringBuilder("Found " + resolveInfos.size() + " TTS engine(s): ");
-            for (android.content.pm.ResolveInfo info : resolveInfos) {
-                engineInfo.append(info.serviceInfo.packageName).append("; ");
-                Log.d(TAG, "TTS Engine: " + info.serviceInfo.packageName);
+        // Method 1: Get all installed apps and check which have TTS service in manifest
+        // This is the most reliable way on customized Android like HyperOS
+        jsLog("info", "TTS", "=== Enumerating ALL installed apps for TTS services ===");
+        try {
+            Intent ttsServiceIntent = new Intent();
+            ttsServiceIntent.setAction("android.speech.tts.TextToSpeechService");
+            java.util.List<android.content.pm.ResolveInfo> allServices = pm.queryIntentServices(ttsServiceIntent, PackageManager.GET_RESOLVED_FILTER);
+            int allCount = (allServices == null) ? 0 : allServices.size();
+            jsLog("info", "TTS", "query(TextToSpeechService, GET_RESOLVED_FILTER) returned " + allCount + " services");
+            for (android.content.pm.ResolveInfo ri : allServices) {
+                jsLog("info", "TTS", "  TTS Service: pkg=" + ri.serviceInfo.packageName + " name=" + ri.serviceInfo.name);
+                Log.d(TAG, "  TTS Service: " + ri.serviceInfo.packageName);
             }
-            jsLog("info", "TTS", engineInfo.toString());
-            Log.d(TAG, engineInfo.toString());
+
+            // Also try TTS_SERVICE
+            Intent ttsServiceIntent2 = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            java.util.List<android.content.pm.ResolveInfo> allServices2 = pm.queryIntentServices(ttsServiceIntent2, PackageManager.GET_RESOLVED_FILTER);
+            int allCount2 = (allServices2 == null) ? 0 : allServices2.size();
+            jsLog("info", "TTS", "query(ACTION_CHECK_TTS_DATA, GET_RESOLVED_FILTER) returned " + allCount2 + " services");
+            for (android.content.pm.ResolveInfo ri : allServices2) {
+                jsLog("info", "TTS", "  TTS Engine: pkg=" + ri.serviceInfo.packageName + " name=" + ri.serviceInfo.name);
+                Log.d(TAG, "  TTS Engine: " + ri.serviceInfo.packageName);
+            }
+
+            // Try getting DEFAULT engine
+            if (tts != null) {
+                String defaultEngine = tts.getDefaultEngine();
+                jsLog("info", "TTS", "getDefaultEngine=" + defaultEngine);
+            }
+        } catch (Exception e) {
+            jsLog("warn", "TTS", "enumerate error: " + e.getMessage());
+            Log.e(TAG, "enumerate error: " + e.getMessage());
         }
 
-        // Initialize TTS - try directly without requiring the intent check to succeed
-        // This is important for Xiaomi devices where the intent may not be registered
-        jsLog("info", "TTS", "Calling initTTS (direct init, no pre-check)...");
-        Log.d(TAG, "Calling initTTS...");
+        // Method 2: Try to get default engine name before init
+        jsLog("info", "TTS", "=== Trying to get default TTS engine ===");
+        try {
+            Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            checkIntent.addCategory(Intent.CATEGORY_DEFAULT);
+            android.content.pm.ResolveInfo ri = pm.resolveActivity(checkIntent, PackageManager.MATCH_DEFAULT_ONLY);
+            if (ri != null) {
+                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) resolved to: " + ri.activityInfo.packageName);
+            } else {
+                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) returned null");
+            }
+        } catch (Exception e) {
+            jsLog("warn", "TTS", "resolveActivity error: " + e.getMessage());
+        }
+
+        // Initialize TTS
+        jsLog("info", "TTS", "Calling initTTS...");
         initTTS();
 
         // Fallback: if TTS not ready after 5 seconds, mark as failed
