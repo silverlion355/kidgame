@@ -418,22 +418,18 @@ public class MainActivity extends AppCompatActivity {
                             ttsReady = false;
                             showTTSInstallDialog();
                             return;
+                        } else {
+                            // 语言可用，标记就绪
+                            ttsReady = true;
+                            jsLog("info", "TTS", "onInit: SUCCESS! ttsReady=true, TTS is ready to speak");
+                            Log.d(TAG, "TTS initialized successfully, ttsReady=true");
+                            notifyTTSReady();
+                            jsLog("info", "TTS", "Speaking test '你好，这是小米澎湃OS的TTS测试'...");
+                            tts.speak("你好，这是小米澎湃OS的TTS测试", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
+                            return;
                         }
-
-                        // 语言可用，标记就绪
-                        ttsReady = true;
-                        jsLog("info", "TTS", "onInit: SUCCESS! ttsReady=true, TTS is ready to speak");
-                        Log.d(TAG, "TTS initialized successfully, ttsReady=true");
-
-                        // 通知页面TTS已就绪
-                        notifyTTSReady();
-
-                        // 测试朗读
-                        jsLog("info", "TTS", "Speaking test '你好，这是小米澎湃OS的TTS测试'...");
-                        Log.d(TAG, "TTS is ready! Speaking test...");
-                        tts.speak("你好，这是小米澎湃OS的TTS测试", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
                     } else {
-                        jsLog("error", "TTS", "onInit: FAILED with status=" + status);
+                        jsLog("error", "TTS", "onInit: FAILED with status=" + status + " (ERROR=-1)");
                         Log.e(TAG, "TTS init failed with status: " + status);
                         ttsReady = false;
                         notifyTTSFailed();
