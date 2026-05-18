@@ -180,6 +180,12 @@ public class MainActivity extends AppCompatActivity {
     private void checkAndInitTTS() {
         Log.d(TAG, "checkAndInitTTS called");
 
+        // Avoid multiple simultaneous init attempts
+        if (tts != null && ttsReady) {
+            Log.d(TAG, "TTS already initialized, skipping");
+            return;
+        }
+
         // Check if TTS engine is available
         Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
         PackageManager pm = getPackageManager();
@@ -211,6 +217,17 @@ public class MainActivity extends AppCompatActivity {
         // Initialize TTS
         Log.d(TAG, "Calling initTTS...");
         initTTS();
+
+        // Fallback: if TTS not ready after 5 seconds, mark as failed
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!ttsReady) {
+                    Log.w(TAG, "TTS init timeout - still not ready after 5s, notifying failed");
+                    notifyTTSFailed();
+                }
+            }
+        }, 5000);
     }
 
     private void showTTSInstallDialog() {
