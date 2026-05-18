@@ -34,11 +34,13 @@ public class MainActivity extends AppCompatActivity {
     // Helper: send log to JS GameStorage so user can see in app debug log
     private void jsLog(String level, String tag, String msg) {
         final String fullMsg = msg.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+        final String fullTag = tag.replace("\\", "\\\\").replace("'", "\\'");
         if (webView != null) {
             webView.post(new Runnable() {
                 @Override
                 public void run() {
-                    String js = "GameStorage.addLog('" + level + "', '[Native:" + tag + "] " + fullMsg + "');";
+                    // Pass real timestamp from Java side so logs are in chronological order
+                    String js = "GameStorage.addLog('" + level + "', '[Native:" + fullTag + "] " + fullMsg + "', {time: new Date().toISOString()});";
                     if (webView != null) {
                         webView.evaluateJavascript(js, null);
                     }
@@ -57,55 +59,11 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Model: " + Build.MODEL);
         jsLog("info", "Activity", "onCreate: Manufacturer=" + Build.MANUFACTURER + " Model=" + Build.MODEL);
 
-        // 打印系统详细信息到日志
-        jsLog("info", "System", "=== SYSTEM INFO ===");
-        jsLog("info", "System", "Build.MANUFACTURER=" + Build.MANUFACTURER);
-        jsLog("info", "System", "Build.BRAND=" + Build.BRAND);
-        jsLog("info", "System", "Build.MODEL=" + Build.MODEL);
-        jsLog("info", "System", "Build.DEVICE=" + Build.DEVICE);
-        jsLog("info", "System", "Build.PRODUCT=" + Build.PRODUCT);
-        jsLog("info", "System", "Build.ID=" + Build.ID);
-        jsLog("info", "System", "Build.VERSION.RELEASE=" + Build.VERSION.RELEASE);
-        jsLog("info", "System", "Build.VERSION.SDK_INT=" + Build.VERSION.SDK_INT);
-        jsLog("info", "System", "Build.VERSION.SECURITY_PATCH=" + Build.VERSION.SECURITY_PATCH);
-        jsLog("info", "System", "System.getProperty('os.version')=" + System.getProperty("os.version"));
-        jsLog("info", "System", "System.getProperty('java.vendor')=" + System.getProperty("java.vendor"));
-        jsLog("info", "System", "System.getProperty('java.version')=" + System.getProperty("java.version"));
-        jsLog("info", "System", "=== END SYSTEM INFO ===");
-
-        // 打印已安装的TTS相关包
-        jsLog("info", "System", "=== TTS-RELATED PACKAGES ===");
-        try {
-            PackageManager pm = getPackageManager();
-            java.util.List<android.content.pm.ApplicationInfo> installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-            for (android.content.pm.ApplicationInfo app : installedApps) {
-                String pkgName = app.packageName.toLowerCase();
-                if (pkgName.contains("tts") || pkgName.contains("speech") || pkgName.contains("voice") ||
-                    pkgName.contains("xiaomi") && pkgName.contains("speech") ||
-                    pkgName.contains("google") && (pkgName.contains("tts") || pkgName.contains("speech")) ||
-                    pkgName.contains("miui") && pkgName.contains("speech")) {
-                    android.content.pm.PackageInfo pi = pm.getPackageInfo(app.packageName, 0);
-                    jsLog("info", "System", "  Possible TTS app: " + app.packageName + " (version=" + pi.versionName + ")");
-                }
-            }
-            jsLog("info", "System", "=== END TTS PACKAGES ===");
-        } catch (Exception e) {
-            jsLog("warn", "System", "Error listing TTS packages: " + e.getMessage());
-        }
-
         // Check and request RECORD_AUDIO permission (especially for Xiaomi)
         checkAndRequestPermissions();
 
         // Setup WebView first
         webView = findViewById(R.id.webview);
-
-        // 添加JS调试日志接口
-        webView.addJavascriptInterface(new Object() {
-            @JavascriptInterface
-            public void log(String msg) {
-                Log.d(TAG, "[JS-LOG] " + msg);
-            }
-        }, "DebugLog");
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -116,34 +74,11 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
 
-        Log.d(TAG, "About to add AndroidTTS interface");
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
-        Log.d(TAG, "AndroidTTS interface added");
 
-        // 添加NativeLogger：Java端日志同时写入GameStorage供JS查看
-        webView.addJavascriptInterface(new Object() {
-            @JavascriptInterface
-            public void log(String level, String tag, String msg) {
-                // 写入GameStorage供用户在app内查看
-                String fullMsg = "[" + tag + "] " + msg;
-                Log.d(tag, msg); // 同时写Android日志
-            }
-        }, "NativeLogger");
-
-        // Add bridge interface for JS to call native methods
-        webView.addJavascriptInterface(new Object() {
-            @JavascriptInterface
-            public void finish() {
-                Log.d(TAG, "finish() called from JS");
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        MainActivity.this.finish();
-                    }
-                });
-            }
-        }, "AndroidBridge");
+        // === System info logging (after WebView is ready) ===
+        logSystemInfo();
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -212,6 +147,43 @@ public class MainActivity extends AppCompatActivity {
         checkAndInitTTS();
     }
 
+    private void logSystemInfo() {
+        Log.d(TAG, "logSystemInfo: Manufacturer=" + Build.MANUFACTURER);
+        jsLog("info", "System", "=== SYSTEM INFO ===");
+        jsLog("info", "System", "Build.MANUFACTURER=" + Build.MANUFACTURER);
+        jsLog("info", "System", "Build.BRAND=" + Build.BRAND);
+        jsLog("info", "System", "Build.MODEL=" + Build.MODEL);
+        jsLog("info", "System", "Build.DEVICE=" + Build.DEVICE);
+        jsLog("info", "System", "Build.PRODUCT=" + Build.PRODUCT);
+        jsLog("info", "System", "Build.ID=" + Build.ID);
+        jsLog("info", "System", "Build.VERSION.RELEASE=" + Build.VERSION.RELEASE);
+        jsLog("info", "System", "Build.VERSION.SDK_INT=" + Build.VERSION.SDK_INT);
+        jsLog("info", "System", "Build.VERSION.SECURITY_PATCH=" + Build.VERSION.SECURITY_PATCH);
+        jsLog("info", "System", "System.getProperty('os.version')=" + System.getProperty("os.version"));
+        jsLog("info", "System", "System.getProperty('java.vendor')=" + System.getProperty("java.vendor"));
+        jsLog("info", "System", "System.getProperty('java.version')=" + System.getProperty("java.version"));
+        jsLog("info", "System", "=== END SYSTEM INFO ===");
+
+        jsLog("info", "System", "=== TTS-RELATED PACKAGES ===");
+        try {
+            PackageManager pm = getPackageManager();
+            java.util.List<android.content.pm.ApplicationInfo> installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            for (android.content.pm.ApplicationInfo app : installedApps) {
+                String pkgName = app.packageName.toLowerCase();
+                if (pkgName.contains("tts") || pkgName.contains("speech") || pkgName.contains("voice") ||
+                    (pkgName.contains("xiaomi") && pkgName.contains("speech")) ||
+                    (pkgName.contains("google") && (pkgName.contains("tts") || pkgName.contains("speech"))) ||
+                    (pkgName.contains("miui") && pkgName.contains("speech"))) {
+                    android.content.pm.PackageInfo pi = pm.getPackageInfo(app.packageName, 0);
+                    jsLog("info", "System", "  Possible TTS app: " + app.packageName + " (version=" + pi.versionName + ")");
+                }
+            }
+            jsLog("info", "System", "=== END TTS PACKAGES ===");
+        } catch (Exception e) {
+            jsLog("warn", "System", "Error listing TTS packages: " + e.getMessage());
+        }
+    }
+
     private void checkAndRequestPermissions() {
         // Xiaomi/Redmi devices require RECORD_AUDIO for TTS
         boolean isXiaomi = Build.MANUFACTURER.toLowerCase().contains("xiaomi") ||
@@ -252,67 +224,45 @@ public class MainActivity extends AppCompatActivity {
 
         PackageManager pm = getPackageManager();
 
-        // Method 1: Get all installed apps and check which have TTS service in manifest
-        // This is the most reliable way on customized Android like HyperOS
-        jsLog("info", "TTS", "=== Enumerating ALL installed apps for TTS services ===");
+        // Get all TTS service declarations - most reliable on customized Android
+        jsLog("info", "TTS", "=== Enumerating TTS services via queryIntentServices ===");
         try {
             Intent ttsServiceIntent = new Intent();
             ttsServiceIntent.setAction("android.speech.tts.TextToSpeechService");
             java.util.List<android.content.pm.ResolveInfo> allServices = pm.queryIntentServices(ttsServiceIntent, PackageManager.GET_RESOLVED_FILTER);
             int allCount = (allServices == null) ? 0 : allServices.size();
-            jsLog("info", "TTS", "query(TextToSpeechService, GET_RESOLVED_FILTER) returned " + allCount + " services");
+            jsLog("info", "TTS", "query(TextToSpeechService) returned " + allCount + " services");
             for (android.content.pm.ResolveInfo ri : allServices) {
-                jsLog("info", "TTS", "  TTS Service: pkg=" + ri.serviceInfo.packageName + " name=" + ri.serviceInfo.name);
-                Log.d(TAG, "  TTS Service: " + ri.serviceInfo.packageName);
-            }
-
-            // Also try TTS_SERVICE
-            Intent ttsServiceIntent2 = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-            java.util.List<android.content.pm.ResolveInfo> allServices2 = pm.queryIntentServices(ttsServiceIntent2, PackageManager.GET_RESOLVED_FILTER);
-            int allCount2 = (allServices2 == null) ? 0 : allServices2.size();
-            jsLog("info", "TTS", "query(ACTION_CHECK_TTS_DATA, GET_RESOLVED_FILTER) returned " + allCount2 + " services");
-            for (android.content.pm.ResolveInfo ri : allServices2) {
-                jsLog("info", "TTS", "  TTS Engine: pkg=" + ri.serviceInfo.packageName + " name=" + ri.serviceInfo.name);
-                Log.d(TAG, "  TTS Engine: " + ri.serviceInfo.packageName);
-            }
-
-            // Try getting DEFAULT engine
-            if (tts != null) {
-                String defaultEngine = tts.getDefaultEngine();
-                jsLog("info", "TTS", "getDefaultEngine=" + defaultEngine);
+                jsLog("info", "TTS", "  TTS Service: pkg=" + ri.serviceInfo.packageName + " svc=" + ri.serviceInfo.name);
             }
         } catch (Exception e) {
-            jsLog("warn", "TTS", "enumerate error: " + e.getMessage());
-            Log.e(TAG, "enumerate error: " + e.getMessage());
+            jsLog("warn", "TTS", "queryIntentServices error: " + e.getMessage());
         }
 
-        jsLog("info", "TTS", "=== Trying to get default TTS engine ===");
+        // Read default TTS engine from system settings
+        jsLog("info", "TTS", "=== Default TTS engine info ===");
         try {
-            // Try reading default TTS engine from Settings.Secure
             String defaultEngine = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.TTS_DEFAULT_SYNTH);
-            jsLog("info", "TTS", "Settings.Secure.TTS_DEFAULT_SYNTH=" + defaultEngine);
+            jsLog("info", "TTS", "TTS_DEFAULT_SYNTH=" + defaultEngine);
 
-            // Try reading default TTS locale
             String defaultLocale = android.provider.Settings.Secure.getString(getContentResolver(), "tts_default_locale");
             jsLog("info", "TTS", "tts_default_locale=" + defaultLocale);
 
-            // Try reading TTS speech rate (use hardcoded string - TTS_SPEECH_RATE is not a public SDK constant)
             String speechRateStr = android.provider.Settings.Secure.getString(getContentResolver(), "tts_default_speech_rate");
             jsLog("info", "TTS", "tts_default_speech_rate=" + speechRateStr);
-
         } catch (Exception e) {
             jsLog("warn", "TTS", "Settings query error: " + e.getMessage());
         }
 
-        // Method 3: List all TTS engine features using Intent
+        // Try ACTION_CHECK_TTS_DATA
         try {
             Intent intent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
             intent.addCategory(Intent.CATEGORY_DEFAULT);
             android.content.pm.ResolveInfo ri = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
             if (ri != null) {
-                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) resolved to: " + ri.activityInfo.packageName + "/" + ri.activityInfo.name);
+                jsLog("info", "TTS", "ACTION_CHECK_TTS_DATA resolves to: " + ri.activityInfo.packageName + "/" + ri.activityInfo.name);
             } else {
-                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) returned null");
+                jsLog("info", "TTS", "ACTION_CHECK_TTS_DATA: no default activity");
             }
         } catch (Exception e) {
             jsLog("warn", "TTS", "resolveActivity error: " + e.getMessage());
@@ -328,10 +278,7 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 if (!ttsReady) {
                     jsLog("warn", "TTS", "TTS init timeout - still not ready after 5s! tts=" + (tts!=null) + ", calling notifyTTSFailed");
-                    Log.w(TAG, "TTS init timeout - still not ready after 5s, tts=" + (tts!=null) + ", notifying failed");
                     notifyTTSFailed();
-                } else {
-                    jsLog("info", "TTS", "TTS init timeout check: already ready, skipping");
                 }
             }
         }, 5000);
@@ -339,14 +286,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void showTTSInstallDialog() {
         jsLog("info", "TTS", "showTTSInstallDialog: showing dialog to user");
-        Log.d(TAG, "showTTSInstallDialog called");
         new AlertDialog.Builder(this)
             .setTitle("语音功能需要设置")
             .setMessage("检测到您的手机未安装语音引擎或未正确配置。\n\n请在设置中下载并启用中文语音包。")
             .setPositiveButton("去设置", new android.content.DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(android.content.DialogInterface dialog, int which) {
-                    jsLog("info", "TTS", "user clicked 去设置, calling openTTSSettings");
+                    jsLog("info", "TTS", "user clicked 去设置");
                     openTTSSettings();
                 }
             })
@@ -361,57 +307,31 @@ public class MainActivity extends AppCompatActivity {
 
     private void openTTSSettings() {
         jsLog("info", "TTS", "openTTSSettings: trying to open TTS settings...");
-        Log.d(TAG, "openTTSSettings called");
         boolean settingsOpened = false;
 
-        // Try ACTION_CHECK_TTS_DATA first - this opens the TTS settings/install page
+        // Try ACTION_CHECK_TTS_DATA first
         try {
             Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-            jsLog("info", "TTS", "openTTSSettings: trying ACTION_CHECK_TTS_DATA");
             if (checkIntent.resolveActivity(getPackageManager()) != null) {
                 startActivity(checkIntent);
                 settingsOpened = true;
-                jsLog("info", "TTS", "openTTSSettings: SUCCESS with ACTION_CHECK_TTS_DATA");
-                Log.d(TAG, "Successfully opened ACTION_CHECK_TTS_DATA");
-            } else {
-                jsLog("info", "TTS", "openTTSSettings: no activity for ACTION_CHECK_TTS_DATA");
+                jsLog("info", "TTS", "openTTSSettings: SUCCESS ACTION_CHECK_TTS_DATA");
             }
         } catch (Exception e) {
             jsLog("warn", "TTS", "openTTSSettings: ACTION_CHECK_TTS_DATA failed: " + e.getMessage());
         }
 
-        // If not opened yet, try Xiaomi-specific TTS settings activity
+        // Try to open app info for the default TTS engine from Settings
         if (!settingsOpened) {
             try {
-                jsLog("info", "TTS", "openTTSSettings: trying Xiaomi TextSettingsActivity");
-                Intent xiaomiIntent = new Intent();
-                xiaomiIntent.setClassName("com.android.settings", "com.android.settings.TextSettingsActivity");
-                if (xiaomiIntent.resolveActivity(getPackageManager()) != null) {
-                    startActivity(xiaomiIntent);
-                    settingsOpened = true;
-                    jsLog("info", "TTS", "openTTSSettings: SUCCESS with Xiaomi TextSettingsActivity");
-                    Log.d(TAG, "Successfully opened Xiaomi TextSettingsActivity");
-                } else {
-                    jsLog("info", "TTS", "openTTSSettings: no activity for Xiaomi TextSettingsActivity");
-                }
-            } catch (Exception e) {
-                jsLog("warn", "TTS", "openTTSSettings: Xiaomi TextSettingsActivity failed: " + e.getMessage());
-            }
-        }
-
-        // Try to open app info for the default TTS engine
-        if (!settingsOpened) {
-            try {
-                // Read from Settings.Secure to get the actual default engine package
                 String defaultTtsPkg = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.TTS_DEFAULT_SYNTH);
                 if (defaultTtsPkg != null && !defaultTtsPkg.isEmpty()) {
-                    jsLog("info", "TTS", "openTTSSettings: default TTS engine is: " + defaultTtsPkg);
                     Intent appInfoIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
                     appInfoIntent.setData(android.net.Uri.parse("package:" + defaultTtsPkg));
                     if (appInfoIntent.resolveActivity(getPackageManager()) != null) {
                         startActivity(appInfoIntent);
                         settingsOpened = true;
-                        jsLog("info", "TTS", "openTTSSettings: SUCCESS with default TTS engine app info: " + defaultTtsPkg);
+                        jsLog("info", "TTS", "openTTSSettings: SUCCESS default TTS engine: " + defaultTtsPkg);
                     }
                 }
             } catch (Exception e) {
@@ -428,7 +348,6 @@ public class MainActivity extends AppCompatActivity {
             };
             for (String pkg : xiaomiPkgs) {
                 try {
-                    jsLog("info", "TTS", "openTTSSettings: trying package: " + pkg);
                     Intent ai = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
                     ai.setData(android.net.Uri.parse("package:" + pkg));
                     if (ai.resolveActivity(getPackageManager()) != null) {
@@ -444,10 +363,9 @@ public class MainActivity extends AppCompatActivity {
         // Last resort: open general settings
         if (!settingsOpened) {
             try {
-                jsLog("info", "TTS", "openTTSSettings: last resort - opening general settings");
                 Intent generalIntent = new Intent(android.provider.Settings.ACTION_SETTINGS);
                 startActivity(generalIntent);
-                settingsOpened = true;
+                jsLog("info", "TTS", "openTTSSettings: opened general settings");
             } catch (Exception e) {
                 jsLog("error", "TTS", "openTTSSettings: even general settings failed");
             }
@@ -458,80 +376,97 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private static final String GOOGLE_TTS_ENGINE = "com.google.android.tts";
+
     private void initTTS() {
         jsLog("info", "TTS", "initTTS: creating TextToSpeech instance");
-        Log.d(TAG, "initTTS called - creating TextToSpeech instance");
-        ttsReady = false; // Reset state
+        ttsReady = false;
 
-        // Initialize Android TTS
         try {
-            jsLog("info", "TTS", "initTTS: BEFORE new TextToSpeech()");
-            Log.d(TAG, "initTTS: BEFORE new TextToSpeech()");
+            jsLog("info", "TTS", "initTTS: BEFORE new TextToSpeech(..., \"" + GOOGLE_TTS_ENGINE + "\")");
+            // 强制指定 Google TTS，绕过 HyperOS 默认的小米引擎
             tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
                 @Override
                 public void onInit(int status) {
-                    jsLog("info", "TTS", "initTTS: AFTER new TextToSpeech() - onInit called with status=" + status);
-                    Log.d(TAG, "initTTS: AFTER new TextToSpeech() - onInit called with status=" + status);
-                    if (status == TextToSpeech.SUCCESS) {
-                        // 首先检查默认引擎
-                        String currentEngine = tts.getDefaultEngine();
-                        jsLog("info", "TTS", "Default TTS engine: " + currentEngine);
-                        Log.d(TAG, "Default TTS engine: " + currentEngine);
+                    jsLog("info", "TTS", "onInit: status=" + status + ", engine=" + (tts != null ? tts.getDefaultEngine() : "null"));
 
-                        // 检查中文是否可用（澎湃OS可能没有预装中文语音包）
-                        int zhResult = tts.isLanguageAvailable(Locale.CHINA);
-                        jsLog("info", "TTS", "isLanguageAvailable(CHINA)=" + zhResult + " LANG_AVAILABLE=" + TextToSpeech.LANG_AVAILABLE + " LANG_MISSING_DATA=" + TextToSpeech.LANG_MISSING_DATA + " LANG_NOT_SUPPORTED=" + TextToSpeech.LANG_NOT_SUPPORTED);
-                        Log.d(TAG, "Chinese availability: " + zhResult);
+                    if (status != TextToSpeech.SUCCESS) {
+                        jsLog("error", "TTS", "onInit: FAILED status=" + status + " — trying fallback to system default");
+                        // Google TTS 失败，尝试系统默认引擎
+                        tryFallbackTTS();
+                        return;
+                    }
 
-                        // 关键：用setLanguage检查，如果返回LANG_MISSING_DATA需要下载语音包
-                        int setLangResult = tts.setLanguage(Locale.CHINA);
-                        jsLog("info", "TTS", "setLanguage(CHINA) result=" + setLangResult + " (" +
-                            (setLangResult == TextToSpeech.LANG_AVAILABLE ? "LANG_AVAILABLE" :
-                             setLangResult == TextToSpeech.LANG_COUNTRY_AVAILABLE ? "LANG_COUNTRY_AVAILABLE" :
-                             setLangResult == TextToSpeech.LANG_MISSING_DATA ? "LANG_MISSING_DATA ⚠️ 需要下载语音包" :
-                             setLangResult == TextToSpeech.LANG_NOT_SUPPORTED ? "LANG_NOT_SUPPORTED" : "UNKNOWN") + ")");
+                    // 检查引擎
+                    String engine = tts.getDefaultEngine();
+                    jsLog("info", "TTS", "Engine used: " + engine);
 
-                        if (setLangResult == TextToSpeech.LANG_MISSING_DATA) {
-                            // 语音包缺失，引导用户下载
-                            jsLog("warn", "TTS", "LANG_MISSING_DATA: 中文语音包未安装，跳转下载...");
-                            ttsReady = false;
-                            showTTSInstallDialog();
-                            return;
-                        } else if (setLangResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                            jsLog("warn", "TTS", "LANG_NOT_SUPPORTED: 当前引擎不支持中文");
-                            ttsReady = false;
-                            showTTSInstallDialog();
-                            return;
-                        } else {
-                            // 语言可用，标记就绪
-                            ttsReady = true;
-                            jsLog("info", "TTS", "onInit: SUCCESS! ttsReady=true, TTS is ready to speak");
-                            Log.d(TAG, "TTS initialized successfully, ttsReady=true");
-                            notifyTTSReady();
-                            jsLog("info", "TTS", "Speaking test '你好，这是小米澎湃OS的TTS测试'...");
-                            tts.speak("你好，这是小米澎湃OS的TTS测试", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
-                            return;
-                        }
-                    } else {
-                        jsLog("error", "TTS", "onInit: FAILED with status=" + status + " (ERROR=-1)");
-                        Log.e(TAG, "TTS init failed with status: " + status);
+                    // 检查中文是否可用
+                    int zhResult = tts.isLanguageAvailable(Locale.CHINA);
+                    jsLog("info", "TTS", "isLanguageAvailable(CHINA)=" + zhResult);
+
+                    int setLangResult = tts.setLanguage(Locale.CHINA);
+                    jsLog("info", "TTS", "setLanguage(CHINA)=" + setLangResult + " (" +
+                        (setLangResult == TextToSpeech.LANG_AVAILABLE ? "LANG_AVAILABLE" :
+                         setLangResult == TextToSpeech.LANG_COUNTRY_AVAILABLE ? "LANG_COUNTRY_AVAILABLE" :
+                         setLangResult == TextToSpeech.LANG_MISSING_DATA ? "LANG_MISSING_DATA" :
+                         setLangResult == TextToSpeech.LANG_NOT_SUPPORTED ? "LANG_NOT_SUPPORTED" : "UNKNOWN") + ")");
+
+                    if (setLangResult == TextToSpeech.LANG_MISSING_DATA || setLangResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                         ttsReady = false;
+                        jsLog("warn", "TTS", "TTS engine does not support Chinese on this device");
+                        showTTSInstallDialog();
+                        return;
+                    }
+
+                    ttsReady = true;
+                    jsLog("info", "TTS", "TTS SUCCESS! ttsReady=true, engine=" + engine);
+                    notifyTTSReady();
+                }
+            }, GOOGLE_TTS_ENGINE);
+            jsLog("info", "TTS", "initTTS: TextToSpeech constructor called with engine=" + GOOGLE_TTS_ENGINE);
+        } catch (Exception e) {
+            jsLog("error", "TTS", "initTTS exception: " + e.getMessage());
+            tryFallbackTTS();
+        }
+    }
+
+    private void tryFallbackTTS() {
+        // Google TTS 不可用，尝试系统默认引擎
+        jsLog("info", "TTS", "tryFallbackTTS: trying system default engine");
+        try {
+            tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+                @Override
+                public void onInit(int status) {
+                    jsLog("info", "TTS", "Fallback onInit: status=" + status + ", engine=" + (tts != null ? tts.getDefaultEngine() : "null"));
+                    if (status != TextToSpeech.SUCCESS) {
+                        jsLog("error", "TTS", "Fallback FAILED: even system default engine failed");
                         notifyTTSFailed();
                         showTTSInstallDialog();
+                        return;
                     }
+                    String engine = tts.getDefaultEngine();
+                    jsLog("info", "TTS", "Fallback engine: " + engine);
+                    int setLangResult = tts.setLanguage(Locale.CHINA);
+                    if (setLangResult == TextToSpeech.LANG_MISSING_DATA || setLangResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        ttsReady = false;
+                        showTTSInstallDialog();
+                        return;
+                    }
+                    ttsReady = true;
+                    jsLog("info", "TTS", "Fallback TTS SUCCESS! engine=" + engine);
+                    notifyTTSReady();
                 }
             });
-            jsLog("info", "TTS", "initTTS: TextToSpeech constructor called, waiting for onInit...");
         } catch (Exception e) {
-            jsLog("error", "TTS", "TextToSpeech constructor threw: " + e.getMessage());
-            Log.e(TAG, "TextToSpeech constructor threw: " + e.getMessage());
+            jsLog("error", "TTS", "Fallback exception: " + e.getMessage());
             notifyTTSFailed();
+            showTTSInstallDialog();
         }
     }
 
     private void notifyTTSReady() {
-        jsLog("info", "TTS", "notifyTTSReady: calling window.onAndroidTTSReady()");
-        Log.d(TAG, "notifyTTSReady called");
+        jsLog("info", "TTS", "notifyTTSReady");
         if (webView != null) {
             webView.post(new Runnable() {
                 @Override
@@ -543,13 +478,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void notifyTTSFailed() {
-        jsLog("error", "TTS", "notifyTTSFailed called - TTS init failed!");
-        Log.e(TAG, "notifyTTSFailed called");
+        jsLog("error", "TTS", "notifyTTSFailed called");
         if (webView != null) {
             webView.post(new Runnable() {
                 @Override
                 public void run() {
-                    jsLog("info", "TTS", "calling window.onAndroidTTSFailed()");
                     webView.evaluateJavascript("if(window.onAndroidTTSFailed) window.onAndroidTTSFailed();", null);
                 }
             });
@@ -560,29 +493,17 @@ public class MainActivity extends AppCompatActivity {
     private class TTSEngine {
         @JavascriptInterface
         public String isAvailable() {
-            String debugInfo = "ready=" + ttsReady + ", tts=" + (tts != null);
-            Log.d(TAG, "isAvailable called, " + debugInfo);
-            return debugInfo;
+            return "ready=" + ttsReady + ", tts=" + (tts != null);
         }
 
         @JavascriptInterface
         public String debug() {
-            String info = "TTSEngine{ready=" + ttsReady + ", tts=" + (tts != null) + "}";
-            Log.d(TAG, "debug: " + info);
-            return info;
+            return "TTSEngine{ready=" + ttsReady + ", tts=" + (tts != null) + "}";
         }
 
         @JavascriptInterface
         public void speak(String text, String lang) {
-            Log.d(TAG, "speak called: text='" + text + "', lang='" + lang + "', ttsReady=" + ttsReady);
-            if (!ttsReady) {
-                Log.w(TAG, "TTS not ready, cannot speak");
-                return;
-            }
-            if (text == null || text.isEmpty()) {
-                Log.w(TAG, "Empty text, cannot speak");
-                return;
-            }
+            if (!ttsReady || text == null || text.isEmpty()) return;
 
             try {
                 Locale locale;
@@ -592,48 +513,25 @@ public class MainActivity extends AppCompatActivity {
                     locale = Locale.CHINA;
                 }
 
-                // 检查语言是否可用
                 int avail = tts.isLanguageAvailable(locale);
-                Log.d(TAG, "Language " + locale + " availability: " + avail);
-
                 if (avail >= TextToSpeech.LANG_AVAILABLE) {
                     tts.setLanguage(locale);
-                } else if (avail >= TextToSpeech.LANG_COUNTRY_AVAILABLE) {
-                    // 尝试使用可用的变体
-                    tts.setLanguage(locale);
                 } else {
-                    // 语言不可用，尝试默认
-                    Log.w(TAG, "Language not available, using default");
                     tts.setLanguage(Locale.getDefault());
                 }
 
-                // 使用QUEUE_FLUSH确保新语音会打断旧语音
                 HashMap<String, String> params = new HashMap<>();
                 params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tts-" + System.currentTimeMillis());
                 tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
-
-                Log.d(TAG, "Speaking: " + text);
-                jsLog("info", "TTS", "speak: '" + text.substring(0, Math.min(20, text.length())) + "'");
+                jsLog("info", "TTS", "speak: " + text.substring(0, Math.min(20, text.length())));
             } catch (Exception e) {
-                Log.e(TAG, "Error speaking: " + e.getMessage(), e);
                 jsLog("error", "TTS", "speak error: " + e.getMessage());
             }
         }
 
         @JavascriptInterface
         public void stop() {
-            if (tts != null) {
-                tts.stop();
-                Log.d(TAG, "TTS stopped");
-            }
-        }
-
-        @JavascriptInterface
-        public void test() {
-            Log.d(TAG, "Test method called");
-            if (ttsReady) {
-                speak("测试", "zh-CN");
-            }
+            if (tts != null) tts.stop();
         }
     }
 

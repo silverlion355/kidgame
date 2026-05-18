@@ -195,11 +195,12 @@ const GameStorage = (function () {
     try {
       var logs = get('logs') || [];
       var entry = {
-        time: new Date().toISOString(),
+        time: data && data.time ? data.time : new Date().toISOString(),
         type: type,
         msg: msg,
         data: data || null
       };
+      // If data.time was passed (from Java), use it as-is; otherwise use now()
       logs.unshift(entry);
       if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
       set('logs', logs);
