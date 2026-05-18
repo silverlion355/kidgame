@@ -384,40 +384,58 @@ public class MainActivity extends AppCompatActivity {
                     jsLog("info", "TTS", "onInit callback: status=" + status + " (SUCCESS=" + TextToSpeech.SUCCESS + ")");
                     Log.d(TAG, "onInit callback: status=" + status + " (SUCCESS=" + TextToSpeech.SUCCESS + ")");
                     if (status == TextToSpeech.SUCCESS) {
-                        ttsReady = true;
-                        jsLog("info", "TTS", "onInit: SUCCESS! ttsReady=true");
-                        Log.d(TAG, "TTS initialized successfully, ttsReady=true");
-
-                        // 检查是否设置了引擎（特别是小米）
+                        // 首先检查默认引擎
                         String currentEngine = tts.getDefaultEngine();
                         jsLog("info", "TTS", "Default TTS engine: " + currentEngine);
                         Log.d(TAG, "Default TTS engine: " + currentEngine);
 
-                        // 测试语音是否可用
-                        int enResult = tts.isLanguageAvailable(Locale.US);
+                        // 检查中文是否可用（澎湃OS可能没有预装中文语音包）
                         int zhResult = tts.isLanguageAvailable(Locale.CHINA);
-                        jsLog("info", "TTS", "English availability: " + enResult + ", Chinese availability: " + zhResult);
-                        Log.d(TAG, "English availability: " + enResult + " (LANG_AVAILABLE=" + TextToSpeech.LANG_AVAILABLE + ")");
+                        jsLog("info", "TTS", "isLanguageAvailable(CHINA)=" + zhResult + " LANG_AVAILABLE=" + TextToSpeech.LANG_AVAILABLE + " LANG_MISSING_DATA=" + TextToSpeech.LANG_MISSING_DATA + " LANG_NOT_SUPPORTED=" + TextToSpeech.LANG_NOT_SUPPORTED);
                         Log.d(TAG, "Chinese availability: " + zhResult);
+
+                        // 关键：用setLanguage检查，如果返回LANG_MISSING_DATA需要下载语音包
+                        int setLangResult = tts.setLanguage(Locale.CHINA);
+                        jsLog("info", "TTS", "setLanguage(CHINA) result=" + setLangResult + " (" +
+                            (setLangResult == TextToSpeech.LANG_AVAILABLE ? "LANG_AVAILABLE" :
+                             setLangResult == TextToSpeech.LANG_COUNTRY_AVAILABLE ? "LANG_COUNTRY_AVAILABLE" :
+                             setLangResult == TextToSpeech.LANG_MISSING_DATA ? "LANG_MISSING_DATA ⚠️ 需要下载语音包" :
+                             setLangResult == TextToSpeech.LANG_NOT_SUPPORTED ? "LANG_NOT_SUPPORTED" : "UNKNOWN") + ")");
+
+                        if (setLangResult == TextToSpeech.LANG_MISSING_DATA) {
+                            // 语音包缺失，引导用户下载
+                            jsLog("warn", "TTS", "LANG_MISSING_DATA: 中文语音包未安装，跳转下载...");
+                            ttsReady = false;
+                            showTTSInstallDialog();
+                            return;
+                        } else if (setLangResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            jsLog("warn", "TTS", "LANG_NOT_SUPPORTED: 当前引擎不支持中文");
+                            ttsReady = false;
+                            showTTSInstallDialog();
+                            return;
+                        }
+
+                        // 语言可用，标记就绪
+                        ttsReady = true;
+                        jsLog("info", "TTS", "onInit: SUCCESS! ttsReady=true, TTS is ready to speak");
+                        Log.d(TAG, "TTS initialized successfully, ttsReady=true");
 
                         // 通知页面TTS已就绪
                         notifyTTSReady();
 
                         // 测试朗读
-                        jsLog("info", "TTS", "TTS ready! Speaking test 'ready'...");
+                        jsLog("info", "TTS", "Speaking test '你好，这是小米澎湃OS的TTS测试'...");
                         Log.d(TAG, "TTS is ready! Speaking test...");
-                        tts.speak("ready", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
-                        tts.stop(); // 立即停止测试
+                        tts.speak("你好，这是小米澎湃OS的TTS测试", TextToSpeech.QUEUE_FLUSH, null, "tts-test");
                     } else {
                         jsLog("error", "TTS", "onInit: FAILED with status=" + status);
                         Log.e(TAG, "TTS init failed with status: " + status);
+                        ttsReady = false;
                         notifyTTSFailed();
-                        // 提示用户设置TTS
                         showTTSInstallDialog();
                     }
                 }
             });
-            jsLog("info", "TTS", "TextToSpeech constructor called, waiting for onInit...");
         } catch (Exception e) {
             jsLog("error", "TTS", "TextToSpeech constructor threw: " + e.getMessage());
             Log.e(TAG, "TextToSpeech constructor threw: " + e.getMessage());
