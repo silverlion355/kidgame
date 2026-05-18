@@ -18,7 +18,6 @@ import androidx.activity.OnBackPressedCallback;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Build;
 
 import java.util.HashMap;
@@ -256,20 +255,24 @@ public class MainActivity extends AppCompatActivity {
                     String currentEngine = tts.getDefaultEngine();
                     Log.d(TAG, "Default TTS engine: " + currentEngine);
 
-                    // 尝试设置使用Google TTS引擎（更稳定）
-                    try {
-                        Intent intent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-                        PackageManager pm = getPackageManager();
-                        var resolveInfos = pm.queryIntentServices(intent, 0);
-                        for (var info : resolveInfos) {
-                            if (info.serviceInfo.packageName.contains("google")) {
-                                Log.d(TAG, "Found Google TTS engine");
-                                break;
+                    // 添加系统返回键和手势支持（Android 13+）
+                    getOnBackPressedDispatcher().addCallback(MainActivity.this, new OnBackPressedCallback(true) {
+                        @Override
+                        public void handleOnBackPressed() {
+                            Log.d(TAG, "Back pressed, webView.canGoBack=" + webView.canGoBack());
+                            try {
+                                if (webView.canGoBack()) {
+                                    webView.goBack();
+                                } else {
+                                    // 通知JS处理返回
+                                    webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack(); else finish();", null);
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Back handling error: " + e.getMessage());
+                                finish();
                             }
                         }
-                    } catch (Exception e) {
-                        Log.w(TAG, "Engine check failed: " + e.getMessage());
-                    }
+                    });
 
                     // 设置UtteranceProgressListener来监听语音状态（Android 14+ deprecated）
                     try {
@@ -319,26 +322,6 @@ public class MainActivity extends AppCompatActivity {
                     notifyTTSFailed();
                     // 提示用户设置TTS
                     showTTSInstallDialog();
-                }
-            }
-        });
-    }
-
-        // 添加系统返回键和手势支持（Android 13+）
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                Log.d(TAG, "Back pressed, webView.canGoBack=" + webView.canGoBack());
-                try {
-                    if (webView.canGoBack()) {
-                        webView.goBack();
-                    } else {
-                        // 通知JS处理返回
-                        webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack(); else finish();", null);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Back handling error: " + e.getMessage());
-                    finish();
                 }
             }
         });
