@@ -15,15 +15,22 @@ import android.widget.Toast;
 import android.os.Handler;
 import android.os.Looper;
 import androidx.activity.OnBackPressedCallback;
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
+import android.os.Build;
 
 import java.util.HashMap;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "KidGameTTS";
+    private static final int REQUEST_RECORD_AUDIO = 1001;
     private WebView webView;
     private TextToSpeech tts;
     private boolean ttsReady = false;
+    private boolean permissionRequested = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +38,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Log.d(TAG, "Creating activity...");
+        Log.d(TAG, "Manufacturer: " + Build.MANUFACTURER);
+        Log.d(TAG, "Model: " + Build.MODEL);
+
+        // Check and request RECORD_AUDIO permission (especially for Xiaomi)
+        checkAndRequestPermissions();
 
         // Setup WebView first
         webView = findViewById(R.id.webview);
@@ -134,6 +146,104 @@ public class MainActivity extends AppCompatActivity {
         // Load the kidgame HTML file from assets
         webView.loadUrl("file:///android_asset/kidgame/index.html");
 
+        // Check TTS engine availability before initializing
+        checkAndInitTTS();
+    }
+
+    private void checkAndRequestPermissions() {
+        // Xiaomi/Redmi devices require RECORD_AUDIO for TTS
+        boolean isXiaomi = Build.MANUFACTURER.toLowerCase().contains("xiaomi") ||
+                          Build.MANUFACTURER.toLowerCase().contains("redmi");
+
+        if (isXiaomi || Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting RECORD_AUDIO permission (Xiaomi device detected)");
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
+                permissionRequested = true;
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "RECORD_AUDIO permission granted");
+            } else {
+                Log.w(TAG, "RECORD_AUDIO permission denied");
+            }
+            // Re-check TTS after permission result
+            checkAndInitTTS();
+        }
+    }
+
+    private void checkAndInitTTS() {
+        // Check if TTS engine is available
+        Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+        PackageManager pm = getPackageManager();
+        var resolveInfos = pm.queryIntentServices(checkIntent, 0);
+
+        if (resolveInfos == null || resolveInfos.isEmpty()) {
+            Log.w(TAG, "No TTS engine found on system");
+            // Notify JS that TTS is not available
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (webView != null) {
+                        webView.evaluateJavascript("if(window.onAndroidTTSFailed) window.onAndroidTTSFailed();", null);
+                        // Prompt user to install TTS engine
+                        showTTSInstallDialog();
+                    }
+                }
+            }, 1000);
+            return;
+        }
+
+        Log.d(TAG, "Found " + resolveInfos.size() + " TTS engine(s)");
+        for (var info : resolveInfos) {
+            Log.d(TAG, "TTS Engine: " + info.serviceInfo.packageName);
+        }
+
+        // Initialize TTS
+        initTTS();
+    }
+
+    private void showTTSInstallDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("语音功能需要设置")
+            .setMessage("检测到您的手机未安装语音引擎或未正确配置。\n\n是否跳转到系统设置进行配置？")
+            .setPositiveButton("去设置", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    openTTSSettings();
+                }
+            })
+            .setNegativeButton("暂不设置", null)
+            .show();
+    }
+
+    private void openTTSSettings() {
+        try {
+            // Try Xiaomi-specific TTS settings
+            Intent intent = new Intent("com.android.settings.TTS_TEXT_TO_SPEECH");
+            intent.setPackage("com.android.settings");
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivity(intent);
+            } else {
+                // Fallback to generic TTS settings
+                Intent genericIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+                startActivity(genericIntent);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to open TTS settings: " + e.getMessage());
+            Toast.makeText(this, "请手动到设置中开启语音功能", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void initTTS() {
+        Log.d(TAG, "Initializing TTS...");
+
         // Initialize Android TTS
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
@@ -141,6 +251,25 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "TTS init status: " + status);
                 if (status == TextToSpeech.SUCCESS) {
                     ttsReady = true;
+
+                    // 检查是否设置了引擎（特别是小米）
+                    String currentEngine = tts.getDefaultEngine();
+                    Log.d(TAG, "Default TTS engine: " + currentEngine);
+
+                    // 尝试设置使用Google TTS引擎（更稳定）
+                    try {
+                        Intent intent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+                        PackageManager pm = getPackageManager();
+                        var resolveInfos = pm.queryIntentServices(intent, 0);
+                        for (var info : resolveInfos) {
+                            if (info.serviceInfo.packageName.contains("google")) {
+                                Log.d(TAG, "Found Google TTS engine");
+                                break;
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Engine check failed: " + e.getMessage());
+                    }
 
                     // 设置UtteranceProgressListener来监听语音状态（Android 14+ deprecated）
                     try {
@@ -188,9 +317,12 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Log.e(TAG, "TTS init failed with status: " + status);
                     notifyTTSFailed();
+                    // 提示用户设置TTS
+                    showTTSInstallDialog();
                 }
             }
         });
+    }
 
         // 添加系统返回键和手势支持（Android 13+）
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
