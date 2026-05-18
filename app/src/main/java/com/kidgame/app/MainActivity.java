@@ -178,10 +178,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkAndInitTTS() {
+        Log.d(TAG, "checkAndInitTTS called");
+
         // Check if TTS engine is available
         Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
         PackageManager pm = getPackageManager();
         java.util.List<android.content.pm.ResolveInfo> resolveInfos = pm.queryIntentServices(checkIntent, 0);
+
+        Log.d(TAG, "checkAndInitTTS: queryIntentServices returned " + (resolveInfos == null ? "null" : resolveInfos.size() + " engines"));
 
         if (resolveInfos == null || resolveInfos.isEmpty()) {
             Log.w(TAG, "No TTS engine found on system");
@@ -205,6 +209,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Initialize TTS
+        Log.d(TAG, "Calling initTTS...");
         initTTS();
     }
 
@@ -241,15 +246,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initTTS() {
-        Log.d(TAG, "Initializing TTS...");
+        Log.d(TAG, "initTTS called - creating TextToSpeech instance");
+        ttsReady = false; // Reset state
 
         // Initialize Android TTS
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
-                Log.d(TAG, "TTS init status: " + status);
+                Log.d(TAG, "onInit callback: status=" + status + " (SUCCESS=" + TextToSpeech.SUCCESS + ")");
                 if (status == TextToSpeech.SUCCESS) {
                     ttsReady = true;
+                    Log.d(TAG, "TTS initialized successfully, ttsReady=true");
 
                     // 检查是否设置了引擎（特别是小米）
                     String currentEngine = tts.getDefaultEngine();
@@ -353,13 +360,16 @@ public class MainActivity extends AppCompatActivity {
     private class TTSEngine {
         @JavascriptInterface
         public boolean isAvailable() {
-            Log.d(TAG, "isAvailable called, returning: " + ttsReady);
+            String debugInfo = "ttsReady=" + ttsReady + ", tts=" + (tts != null);
+            Log.d(TAG, "isAvailable called, " + debugInfo);
             return ttsReady;
         }
 
         @JavascriptInterface
         public String debug() {
-            return "TTSEngine{ready=" + ttsReady + ", tts=" + (tts != null) + "}";
+            String info = "TTSEngine{ready=" + ttsReady + ", tts=" + (tts != null) + "}";
+            Log.d(TAG, "debug: " + info);
+            return info;
         }
 
         @JavascriptInterface
