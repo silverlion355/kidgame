@@ -181,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
         // Check if TTS engine is available
         Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
         PackageManager pm = getPackageManager();
-        var resolveInfos = pm.queryIntentServices(checkIntent, 0);
+        java.util.List<android.content.pm.ResolveInfo> resolveInfos = pm.queryIntentServices(checkIntent, 0);
 
         if (resolveInfos == null || resolveInfos.isEmpty()) {
             Log.w(TAG, "No TTS engine found on system");
@@ -200,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Log.d(TAG, "Found " + resolveInfos.size() + " TTS engine(s)");
-        for (var info : resolveInfos) {
+        for (android.content.pm.ResolveInfo info : resolveInfos) {
             Log.d(TAG, "TTS Engine: " + info.serviceInfo.packageName);
         }
 
