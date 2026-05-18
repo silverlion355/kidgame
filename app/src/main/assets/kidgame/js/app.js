@@ -73,9 +73,16 @@ function checkAndroidTTS() {
       return false;
     }
     GameStorage.addLog('info', 'checkAndroidTTS: AndroidTTS exists, calling isAvailable()');
-    var available = !!(window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable());
+    var result = window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable();
+    GameStorage.addLog('info', 'checkAndroidTTS: isAvailable raw result=' + JSON.stringify(result));
+    var available = !!(result);
     if (typeof DebugLog !== 'undefined') DebugLog.log('isAvailable returned: ' + available);
     GameStorage.addLog('info', 'checkAndroidTTS: available=' + available);
+    // Also get detailed debug info from native
+    if (window.AndroidTTS && window.AndroidTTS.debug) {
+      var debugInfo = window.AndroidTTS.debug();
+      GameStorage.addLog('info', 'checkAndroidTTS: AndroidTTS.debug()=' + debugInfo);
+    }
     return available;
   } catch(e) {
     GameStorage.addLog('error', 'checkAndroidTTS exception: ' + e.message);

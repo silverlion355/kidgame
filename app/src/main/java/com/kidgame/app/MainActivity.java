@@ -359,10 +359,10 @@ public class MainActivity extends AppCompatActivity {
     // JavaScript interface for TTS
     private class TTSEngine {
         @JavascriptInterface
-        public boolean isAvailable() {
-            String debugInfo = "ttsReady=" + ttsReady + ", tts=" + (tts != null);
+        public String isAvailable() {
+            String debugInfo = "ready=" + ttsReady + ", tts=" + (tts != null);
             Log.d(TAG, "isAvailable called, " + debugInfo);
-            return ttsReady;
+            return debugInfo;
         }
 
         @JavascriptInterface
