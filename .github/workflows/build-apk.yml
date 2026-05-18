@@ -21,14 +21,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Download Gradle 7.5
+      - name: Download Gradle 8.5
         run: |
-          curl -L -o /tmp/gradle-7.5-bin.zip "https://services.gradle.org/distributions/gradle-7.5-bin.zip"
-          unzip -o /tmp/gradle-7.5-bin.zip -d /tmp/
-          /tmp/gradle-7.5/bin/gradle --version
+          curl -L --retry 3 --retry-delay 5 -o /tmp/gradle-8.5-bin.zip "https://services.gradle.org/distributions/gradle-8.5-bin.zip"
+          unzip -o /tmp/gradle-8.5-bin.zip -d /tmp/
+          /tmp/gradle-8.5/bin/gradle --version
 
       - name: Build Debug APK
-        run: /tmp/gradle-7.5/bin/gradle assembleDebug --no-daemon
+        run: /tmp/gradle-8.5/bin/gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
