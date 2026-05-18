@@ -215,43 +215,52 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Check if TTS engine is available
+        // Check if TTS engine is available using standard query
         Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
         PackageManager pm = getPackageManager();
         java.util.List<android.content.pm.ResolveInfo> resolveInfos = pm.queryIntentServices(checkIntent, 0);
 
         int engineCount = (resolveInfos == null) ? 0 : resolveInfos.size();
-        jsLog("info", "TTS", "queryIntentServices returned " + engineCount + " engines");
+        jsLog("info", "TTS", "queryIntentServices(ACTION_CHECK_TTS_DATA) returned " + engineCount + " engines");
         Log.d(TAG, "checkAndInitTTS: queryIntentServices returned " + engineCount + " engines");
 
-        if (resolveInfos == null || resolveInfos.isEmpty()) {
-            jsLog("warn", "TTS", "No TTS engine found on system!");
-            Log.w(TAG, "No TTS engine found on system");
-            // Notify JS that TTS is not available
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (webView != null) {
-                        jsLog("info", "TTS", "calling onAndroidTTSFailed + showTTSInstallDialog");
-                        webView.evaluateJavascript("if(window.onAndroidTTSFailed) window.onAndroidTTSFailed();", null);
-                        // Prompt user to install TTS engine
-                        showTTSInstallDialog();
+        // Log ALL services that handle TTS-related intents to help debug
+        String[] ttsIntents = {
+            "android.speech.tts.engine.TTS_DATA",  //Xiaomi
+            "android.intent.action.TTS_SERVICE",
+            "com.android.tts.service.TTSService",
+            "android.speech.tts.TextToSpeechService"
+        };
+        for (String action : ttsIntents) {
+            try {
+                Intent testIntent = new Intent(action);
+                java.util.List<android.content.pm.ResolveInfo> resolved = pm.queryIntentServices(testIntent, 0);
+                int count = (resolved == null) ? 0 : resolved.size();
+                if (count > 0) {
+                    for (android.content.pm.ResolveInfo ri : resolved) {
+                        jsLog("info", "TTS", "Found TTS service: " + ri.serviceInfo.packageName + " for action: " + action);
+                        Log.d(TAG, "Found TTS service: " + ri.serviceInfo.packageName + " for action: " + action);
                     }
                 }
-            }, 1000);
-            return;
+            } catch (Exception e) { }
         }
 
-        StringBuilder engineInfo = new StringBuilder("Found " + resolveInfos.size() + " TTS engine(s): ");
-        for (android.content.pm.ResolveInfo info : resolveInfos) {
-            engineInfo.append(info.serviceInfo.packageName).append("; ");
-            Log.d(TAG, "TTS Engine: " + info.serviceInfo.packageName);
+        if (resolveInfos == null || resolveInfos.isEmpty()) {
+            jsLog("warn", "TTS", "No TTS engine found via ACTION_CHECK_TTS_DATA, but will try direct init anyway");
+            Log.w(TAG, "No TTS engine found via standard query, proceeding with direct init");
+        } else {
+            StringBuilder engineInfo = new StringBuilder("Found " + resolveInfos.size() + " TTS engine(s): ");
+            for (android.content.pm.ResolveInfo info : resolveInfos) {
+                engineInfo.append(info.serviceInfo.packageName).append("; ");
+                Log.d(TAG, "TTS Engine: " + info.serviceInfo.packageName);
+            }
+            jsLog("info", "TTS", engineInfo.toString());
+            Log.d(TAG, engineInfo.toString());
         }
-        jsLog("info", "TTS", engineInfo.toString());
-        Log.d(TAG, engineInfo.toString());
 
-        // Initialize TTS
-        jsLog("info", "TTS", "Calling initTTS...");
+        // Initialize TTS - try directly without requiring the intent check to succeed
+        // This is important for Xiaomi devices where the intent may not be registered
+        jsLog("info", "TTS", "Calling initTTS (direct init, no pre-check)...");
         Log.d(TAG, "Calling initTTS...");
         initTTS();
 
@@ -292,43 +301,73 @@ public class MainActivity extends AppCompatActivity {
     private void openTTSSettings() {
         jsLog("info", "TTS", "openTTSSettings: trying to open TTS settings...");
         Log.d(TAG, "openTTSSettings called");
-        String manufacturer = Build.MANUFACTURER.toLowerCase();
         boolean settingsOpened = false;
 
-        // Try multiple approaches
-        String[] intents = {
-            "com.android.settings.TTS_TEXT_TO_SPEECH",  // Xiaomi specific
-            TextToSpeech.Engine.ACTION_CHECK_TTS_DATA,   // Generic
-            "android.settings.TTS_SETTINGS",               // Standard
-            "android.intent.action.TTS_SETTINGS"          // Alternative standard
-        };
+        // Try ACTION_CHECK_TTS_DATA first - this opens the TTS settings/install page
+        try {
+            Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            jsLog("info", "TTS", "openTTSSettings: trying ACTION_CHECK_TTS_DATA");
+            if (checkIntent.resolveActivity(getPackageManager()) != null) {
+                startActivity(checkIntent);
+                settingsOpened = true;
+                jsLog("info", "TTS", "openTTSSettings: SUCCESS with ACTION_CHECK_TTS_DATA");
+                Log.d(TAG, "Successfully opened ACTION_CHECK_TTS_DATA");
+            } else {
+                jsLog("info", "TTS", "openTTSSettings: no activity for ACTION_CHECK_TTS_DATA");
+            }
+        } catch (Exception e) {
+            jsLog("warn", "TTS", "openTTSSettings: ACTION_CHECK_TTS_DATA failed: " + e.getMessage());
+        }
 
-        for (String action : intents) {
+        // If not opened yet, try Xiaomi-specific TTS settings activity
+        if (!settingsOpened) {
             try {
-                jsLog("info", "TTS", "openTTSSettings: trying intent: " + action);
-                Log.d(TAG, "Trying intent: " + action);
-                Intent intent = new Intent(action);
-                if (action.equals("com.android.settings.TTS_TEXT_TO_SPEECH")) {
-                    intent.setPackage("com.android.settings");
-                }
-                if (intent.resolveActivity(getPackageManager()) != null) {
-                    startActivity(intent);
+                jsLog("info", "TTS", "openTTSSettings: trying Xiaomi TextSettingsActivity");
+                Intent xiaomiIntent = new Intent();
+                xiaomiIntent.setClassName("com.android.settings", "com.android.settings.TextSettingsActivity");
+                if (xiaomiIntent.resolveActivity(getPackageManager()) != null) {
+                    startActivity(xiaomiIntent);
                     settingsOpened = true;
-                    jsLog("info", "TTS", "openTTSSettings: SUCCESS with intent: " + action);
-                    Log.d(TAG, "Successfully opened settings with: " + action);
-                    break;
+                    jsLog("info", "TTS", "openTTSSettings: SUCCESS with Xiaomi TextSettingsActivity");
+                    Log.d(TAG, "Successfully opened Xiaomi TextSettingsActivity");
                 } else {
-                    jsLog("info", "TTS", "openTTSSettings: no activity for: " + action);
+                    jsLog("info", "TTS", "openTTSSettings: no activity for Xiaomi TextSettingsActivity");
                 }
             } catch (Exception e) {
-                jsLog("warn", "TTS", "openTTSSettings: intent " + action + " failed: " + e.getMessage());
-                Log.w(TAG, "Intent " + action + " failed: " + e.getMessage());
+                jsLog("warn", "TTS", "openTTSSettings: Xiaomi TextSettingsActivity failed: " + e.getMessage());
+            }
+        }
+
+        // Try to open app info for the default TTS engine
+        if (!settingsOpened) {
+            try {
+                jsLog("info", "TTS", "openTTSSettings: trying to open app info for Google TTS");
+                Intent appInfoIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                appInfoIntent.setData(android.net.Uri.parse("package:com.google.android.tts"));
+                if (appInfoIntent.resolveActivity(getPackageManager()) != null) {
+                    startActivity(appInfoIntent);
+                    settingsOpened = true;
+                    jsLog("info", "TTS", "openTTSSettings: SUCCESS with Google TTS app info");
+                }
+            } catch (Exception e) {
+                jsLog("warn", "TTS", "openTTSSettings: Google TTS app info failed: " + e.getMessage());
+            }
+        }
+
+        // Last resort: open general settings
+        if (!settingsOpened) {
+            try {
+                jsLog("info", "TTS", "openTTSSettings: last resort - opening general settings");
+                Intent generalIntent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                startActivity(generalIntent);
+                settingsOpened = true;
+            } catch (Exception e) {
+                jsLog("error", "TTS", "openTTSSettings: even general settings failed");
             }
         }
 
         if (!settingsOpened) {
-            jsLog("error", "TTS", "openTTSSettings: ALL intents failed! Telling user to manually set.");
-            Toast.makeText(this, "无法自动打开TTS设置，请手动到 设置→更多设置→辅助功能→语音 开启", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "无法打开TTS设置，请手动到 设置→辅助功能→语音 开启", Toast.LENGTH_LONG).show();
         }
     }
 
