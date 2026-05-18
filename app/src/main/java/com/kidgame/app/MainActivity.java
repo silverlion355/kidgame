@@ -57,6 +57,42 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Model: " + Build.MODEL);
         jsLog("info", "Activity", "onCreate: Manufacturer=" + Build.MANUFACTURER + " Model=" + Build.MODEL);
 
+        // 打印系统详细信息到日志
+        jsLog("info", "System", "=== SYSTEM INFO ===");
+        jsLog("info", "System", "Build.MANUFACTURER=" + Build.MANUFACTURER);
+        jsLog("info", "System", "Build.BRAND=" + Build.BRAND);
+        jsLog("info", "System", "Build.MODEL=" + Build.MODEL);
+        jsLog("info", "System", "Build.DEVICE=" + Build.DEVICE);
+        jsLog("info", "System", "Build.PRODUCT=" + Build.PRODUCT);
+        jsLog("info", "System", "Build.ID=" + Build.ID);
+        jsLog("info", "System", "Build.VERSION.RELEASE=" + Build.VERSION.RELEASE);
+        jsLog("info", "System", "Build.VERSION.SDK_INT=" + Build.VERSION.SDK_INT);
+        jsLog("info", "System", "Build.VERSION.SECURITY_PATCH=" + Build.VERSION.SECURITY_PATCH);
+        jsLog("info", "System", "System.getProperty('os.version')=" + System.getProperty("os.version"));
+        jsLog("info", "System", "System.getProperty('java.vendor')=" + System.getProperty("java.vendor"));
+        jsLog("info", "System", "System.getProperty('java.version')=" + System.getProperty("java.version"));
+        jsLog("info", "System", "=== END SYSTEM INFO ===");
+
+        // 打印已安装的TTS相关包
+        jsLog("info", "System", "=== TTS-RELATED PACKAGES ===");
+        try {
+            PackageManager pm = getPackageManager();
+            java.util.List<android.content.pm.ApplicationInfo> installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            for (android.content.pm.ApplicationInfo app : installedApps) {
+                String pkgName = app.packageName.toLowerCase();
+                if (pkgName.contains("tts") || pkgName.contains("speech") || pkgName.contains("voice") ||
+                    pkgName.contains("xiaomi") && pkgName.contains("speech") ||
+                    pkgName.contains("google") && (pkgName.contains("tts") || pkgName.contains("speech")) ||
+                    pkgName.contains("miui") && pkgName.contains("speech")) {
+                    android.content.pm.PackageInfo pi = pm.getPackageInfo(app.packageName, 0);
+                    jsLog("info", "System", "  Possible TTS app: " + app.packageName + " (version=" + pi.versionName + ")");
+                }
+            }
+            jsLog("info", "System", "=== END TTS PACKAGES ===");
+        } catch (Exception e) {
+            jsLog("warn", "System", "Error listing TTS packages: " + e.getMessage());
+        }
+
         // Check and request RECORD_AUDIO permission (especially for Xiaomi)
         checkAndRequestPermissions();
 
@@ -250,14 +286,31 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "enumerate error: " + e.getMessage());
         }
 
-        // Method 2: Try to get default engine name before init
         jsLog("info", "TTS", "=== Trying to get default TTS engine ===");
         try {
-            Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-            checkIntent.addCategory(Intent.CATEGORY_DEFAULT);
-            android.content.pm.ResolveInfo ri = pm.resolveActivity(checkIntent, PackageManager.MATCH_DEFAULT_ONLY);
+            // Try reading default TTS engine from Settings.Secure
+            String defaultEngine = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.TTS_DEFAULT_SYNTH);
+            jsLog("info", "TTS", "Settings.Secure.TTS_DEFAULT_SYNTH=" + defaultEngine);
+
+            // Try reading default TTS locale
+            String defaultLocale = android.provider.Settings.Secure.getString(getContentResolver(), "tts_default_locale");
+            jsLog("info", "TTS", "tts_default_locale=" + defaultLocale);
+
+            // Try reading TTS speech rate
+            int speechRate = android.provider.Settings.Secure.getInt(getContentResolver(), android.provider.Settings.Secure.TTS_SPEECH_RATE, -1);
+            jsLog("info", "TTS", "TTS_SPEECH_RATE=" + speechRate);
+
+        } catch (Exception e) {
+            jsLog("warn", "TTS", "Settings query error: " + e.getMessage());
+        }
+
+        // Method 3: List all TTS engine features using Intent
+        try {
+            Intent intent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            intent.addCategory(Intent.CATEGORY_DEFAULT);
+            android.content.pm.ResolveInfo ri = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
             if (ri != null) {
-                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) resolved to: " + ri.activityInfo.packageName);
+                jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) resolved to: " + ri.activityInfo.packageName + "/" + ri.activityInfo.name);
             } else {
                 jsLog("info", "TTS", "resolveActivity(ACTION_CHECK_TTS_DATA) returned null");
             }
@@ -349,16 +402,42 @@ public class MainActivity extends AppCompatActivity {
         // Try to open app info for the default TTS engine
         if (!settingsOpened) {
             try {
-                jsLog("info", "TTS", "openTTSSettings: trying to open app info for Google TTS");
-                Intent appInfoIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                appInfoIntent.setData(android.net.Uri.parse("package:com.google.android.tts"));
-                if (appInfoIntent.resolveActivity(getPackageManager()) != null) {
-                    startActivity(appInfoIntent);
-                    settingsOpened = true;
-                    jsLog("info", "TTS", "openTTSSettings: SUCCESS with Google TTS app info");
+                // Read from Settings.Secure to get the actual default engine package
+                String defaultTtsPkg = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.TTS_DEFAULT_SYNTH);
+                if (defaultTtsPkg != null && !defaultTtsPkg.isEmpty()) {
+                    jsLog("info", "TTS", "openTTSSettings: default TTS engine is: " + defaultTtsPkg);
+                    Intent appInfoIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    appInfoIntent.setData(android.net.Uri.parse("package:" + defaultTtsPkg));
+                    if (appInfoIntent.resolveActivity(getPackageManager()) != null) {
+                        startActivity(appInfoIntent);
+                        settingsOpened = true;
+                        jsLog("info", "TTS", "openTTSSettings: SUCCESS with default TTS engine app info: " + defaultTtsPkg);
+                    }
                 }
             } catch (Exception e) {
-                jsLog("warn", "TTS", "openTTSSettings: Google TTS app info failed: " + e.getMessage());
+                jsLog("warn", "TTS", "openTTSSettings: default TTS app info failed: " + e.getMessage());
+            }
+        }
+
+        // Try Xiaomi specific speech engine app info
+        if (!settingsOpened) {
+            String[] xiaomiPkgs = {
+                "com.xiaomi.miui.speechcraft",
+                "com.miui.speechassist",
+                "com.android.tts"
+            };
+            for (String pkg : xiaomiPkgs) {
+                try {
+                    jsLog("info", "TTS", "openTTSSettings: trying package: " + pkg);
+                    Intent ai = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    ai.setData(android.net.Uri.parse("package:" + pkg));
+                    if (ai.resolveActivity(getPackageManager()) != null) {
+                        startActivity(ai);
+                        settingsOpened = true;
+                        jsLog("info", "TTS", "openTTSSettings: SUCCESS with pkg: " + pkg);
+                        break;
+                    }
+                } catch (Exception e) { }
             }
         }
 
