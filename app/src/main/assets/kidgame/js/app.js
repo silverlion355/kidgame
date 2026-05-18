@@ -73,11 +73,16 @@ function checkAndroidTTS() {
       return false;
     }
     GameStorage.addLog('info', 'checkAndroidTTS: AndroidTTS exists, calling isAvailable()');
-    var result = window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable();
-    GameStorage.addLog('info', 'checkAndroidTTS: isAvailable raw result=' + JSON.stringify(result));
-    var available = !!(result);
-    if (typeof DebugLog !== 'undefined') DebugLog.log('isAvailable returned: ' + available);
-    GameStorage.addLog('info', 'checkAndroidTTS: available=' + available);
+    var rawResult = window.AndroidTTS.isAvailable && window.AndroidTTS.isAvailable();
+    GameStorage.addLog('info', 'checkAndroidTTS: isAvailable raw result=' + rawResult);
+
+    // 解析字符串格式 "ready=true, tts=true" 或 "ready=false, tts=false"
+    // 注意：字符串永远truthy，所以必须解析内容来判断
+    // 解析字符串格式 "ready=true, tts=true" 或 "ready=false, tts=false"
+    // 注意：字符串永远truthy，必须解析内容
+    var isReady = (typeof rawResult === 'string') && rawResult.indexOf('ready=true') !== -1;
+    var available = isReady;
+    GameStorage.addLog('info', 'checkAndroidTTS: available=' + available + ' (isReady=' + isReady + ')');
     // Also get detailed debug info from native
     if (window.AndroidTTS && window.AndroidTTS.debug) {
       var debugInfo = window.AndroidTTS.debug();
