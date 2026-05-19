@@ -175,9 +175,14 @@ function checkAndroidTTS() {
   
   function startBgMusic() {
     if (isBgMusicPlaying) return;
-    isBgMusicPlaying = true;
-    playBgNote();
-    bgMusicInterval = setInterval(playBgNote, 900);
+    try {
+      isBgMusicPlaying = true;
+      playBgNote();
+      bgMusicInterval = setInterval(playBgNote, 900);
+    } catch(e) {
+      console.warn('[startBgMusic] error:', e);
+      GameStorage.addLog('warn', '[startBgMusic] FAIL: ' + e.message);
+    }
   }
   
   function stopBgMusic() {
@@ -217,15 +222,22 @@ function checkAndroidTTS() {
 
   // ===== init =====
   function init() {
+    console.log('[init] Starting app initialization...');
     try {
+      console.log('[init] Step 1: Loading data...');
       DataManager.loadAll();
+      console.log('[init] Step 2: Updating UI...');
       updateHomeUI();
+      console.log('[init] Step 3: Checking reward...');
       checkReward();
+      console.log('[init] Step 4: Starting music...');
       startBgMusic();
+      console.log('[init] Step 5: Initializing shop...');
       initShop();
       console.log('[init] App initialized successfully');
     } catch(e) {
       console.error('[init] Error during initialization:', e);
+      GameStorage.addLog('error', '[init] FAIL: ' + e.message + ' ' + (e.stack ? e.stack.substring(0, 300) : ''));
       alert('初始化失败: ' + e.message);
     }
   }
@@ -1426,4 +1438,12 @@ function checkAndroidTTS() {
   };
 })();
 
-document.addEventListener('DOMContentLoaded', function() { App.init(); });
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[DOMContentLoaded] Event fired, calling App.init()...');
+  try {
+    App.init();
+  } catch(e) {
+    console.error('[DOMContentLoaded] Uncaught exception in App.init():', e);
+    GameStorage.addLog('error', '[DOMContentLoaded] FATAL: ' + e.message + ' ' + (e.stack ? e.stack.substring(0, 300) : ''));
+  }
+});
