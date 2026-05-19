@@ -272,14 +272,16 @@ public class MainActivity extends AppCompatActivity {
         final String[] selectedEngine = {null};
         final boolean[] done = {false};
 
-        TextToSpeech tempTts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+        final TextToSpeech[] tempTtsHolder = {null};
+        tempTtsHolder[0] = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
                 jsLog("info", "TTS", "Temp TTS onInit: status=" + status);
                 if (status == TextToSpeech.SUCCESS) {
-                    String def = tempTts.getDefaultEngine();
+                    TextToSpeech tt = tempTtsHolder[0];
+                    String def = tt.getDefaultEngine();
                     jsLog("info", "TTS", "Temp TTS default engine: " + def);
-                    List<TextToSpeech.EngineInfo> el = tempTts.getEngines();
+                    List<TextToSpeech.EngineInfo> el = tt.getEngines();
                     jsLog("info", "TTS", "getEngines() returned " + (el == null ? "null" : el.size()) + " engines");
                     if (el != null) {
                         for (TextToSpeech.EngineInfo ei : el) {
@@ -308,10 +310,10 @@ public class MainActivity extends AppCompatActivity {
                             jsLog("info", "TTS", "Selected: first available = " + el.get(0).name);
                         }
                     }
-                    tempTts.shutdown();
+                    tempTtsHolder[0].shutdown();
                 } else {
                     jsLog("error", "TTS", "Temp TTS FAILED status=" + status);
-                    tempTts.shutdown();
+                    tempTtsHolder[0].shutdown();
                 }
                 done[0] = true;
                 // Now init real TTS
