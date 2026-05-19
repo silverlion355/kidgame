@@ -283,31 +283,30 @@ public class MainActivity extends AppCompatActivity {
                     jsLog("info", "TTS", "getEngines() returned " + (el == null ? "null" : el.size()) + " engines");
                     if (el != null) {
                         for (TextToSpeech.EngineInfo ei : el) {
-                            jsLog("info", "TTS", "  Engine: name=" + ei.name + " label=" + ei.label + " enabled=" + ei.enabled);
+                            jsLog("info", "TTS", "  Engine: name=" + ei.name + " label=" + ei.label);
                         }
                         // Priority: Google TTS > non-Xiaomi enabled > first available
                         String preferred = null;
                         for (TextToSpeech.EngineInfo ei : el) {
                             if (ei.name != null && ei.name.contains("com.google.android.tts")) {
-                                preferred = ei.name;
-                                jsLog("info", "TTS", "Selected: Google TTS = " + preferred);
+                                selectedEngine[0] = ei.name;
+                                jsLog("info", "TTS", "Selected: Google TTS = " + ei.name);
                                 break;
                             }
                         }
-                        if (preferred == null) {
+                        if (selectedEngine[0] == null) {
                             for (TextToSpeech.EngineInfo ei : el) {
-                                if (ei.name != null && ei.enabled && !ei.name.contains("xiaomi") && !ei.name.contains("mibrain")) {
-                                    preferred = ei.name;
-                                    jsLog("info", "TTS", "Selected: non-Xiaomi enabled = " + preferred);
+                                if (ei.name != null && !ei.name.contains("xiaomi") && !ei.name.contains("mibrain")) {
+                                    selectedEngine[0] = ei.name;
+                                    jsLog("info", "TTS", "Selected: non-Xiaomi = " + ei.name);
                                     break;
                                 }
                             }
                         }
-                        if (preferred == null && !el.isEmpty()) {
-                            preferred = el.get(0).name;
-                            jsLog("info", "TTS", "Selected: first available = " + preferred);
+                        if (selectedEngine[0] == null && !el.isEmpty()) {
+                            selectedEngine[0] = el.get(0).name;
+                            jsLog("info", "TTS", "Selected: first available = " + el.get(0).name);
                         }
-                        selectedEngine[0] = preferred;
                     }
                     tempTts.shutdown();
                 } else {
@@ -354,7 +353,6 @@ public class MainActivity extends AppCompatActivity {
                 if (status != TextToSpeech.SUCCESS) {
                     jsLog("error", "TTS", "onInit FAILED status=" + status);
                     notifyTTSFailed();
-                    showTTSInstallDialog();
                     return;
                 }
                 String engine = tts.getDefaultEngine();
@@ -368,7 +366,7 @@ public class MainActivity extends AppCompatActivity {
                 if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                     ttsReady = false;
                     jsLog("warn", "TTS", "TTS engine does not support Chinese");
-                    showTTSInstallDialog();
+                    notifyTTSFailed();
                     return;
                 }
                 ttsReady = true;
@@ -388,7 +386,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             jsLog("error", "TTS", "initTTSWithEngine exception: " + e.getMessage());
             notifyTTSFailed();
-            showTTSInstallDialog();
         }
     }
 
