@@ -31,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech tts;
     private boolean ttsReady = false;
     private boolean permissionRequested = false;
+    private boolean ttsInitAttempted = false; // 防止重复初始化尝试
+    private boolean ttsInitInProgress = false; // 防止安全超时触发重复initTTSWithEngine
 
     // Helper: send log to JS GameStorage so user can see in app debug log
     private void jsLog(String level, String tag, String msg) {
@@ -217,6 +219,14 @@ public class MainActivity extends AppCompatActivity {
         jsLog("info", "TTS", "checkAndInitTTS called");
         Log.d(TAG, "checkAndInitTTS called");
 
+        // 防止重复初始化
+        if (ttsInitAttempted) {
+            jsLog("warn", "TTS", "TTS init already attempted, skipping duplicate call");
+            return;
+        }
+        ttsInitAttempted = true;
+        ttsInitInProgress = true;
+
         if (tts != null && ttsReady) {
             jsLog("info", "TTS", "TTS already initialized, skipping");
             return;
@@ -315,6 +325,7 @@ public class MainActivity extends AppCompatActivity {
                     jsLog("error", "TTS", "Temp TTS FAILED status=" + status);
                     try { tempTtsHolder[0].shutdown(); } catch (Exception e) {}
                 }
+                ttsInitInProgress = false;
                 initTTSWithEngine(selectedEngine[0]);
             }
         };
@@ -324,12 +335,13 @@ public class MainActivity extends AppCompatActivity {
         jsLog("info", "TTS", "Creating temp TTS to enumerate engines...");
         tempTtsHolder[0] = new TextToSpeech(this, scanListener);
 
-        // Safety timeout — if temp TTS never fires onInit (e.g. broken engine), fall back
+        // Safety timeout — only fire if ttsInitInProgress is still true (not already completed/failed)
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (!ttsReady) {
+                if (!ttsReady && ttsInitInProgress) {
                     jsLog("warn", "TTS", "TTS safety timeout — temp TTS never responded, trying system default");
+                    ttsInitInProgress = false; // 防止重复触发
                     initTTSWithEngine(null);
                 }
             }
@@ -345,6 +357,7 @@ public class MainActivity extends AppCompatActivity {
             public void onInit(int status) {
                 jsLog("info", "TTS", "onInit: status=" + status + ", engine=" + (tts != null ? tts.getDefaultEngine() : "null"));
                 if (status != TextToSpeech.SUCCESS) {
+                    ttsInitInProgress = false;
                     jsLog("error", "TTS", "onInit FAILED status=" + status);
                     notifyTTSFailed();
                     return;
@@ -359,11 +372,13 @@ public class MainActivity extends AppCompatActivity {
                      langResult == TextToSpeech.LANG_NOT_SUPPORTED ? "LANG_NOT_SUPPORTED" : "UNKNOWN") + ")");
                 if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                     ttsReady = false;
+                    ttsInitInProgress = false;
                     jsLog("warn", "TTS", "TTS engine does not support Chinese");
                     notifyTTSFailed();
                     return;
                 }
                 ttsReady = true;
+                ttsInitInProgress = false;
                 jsLog("info", "TTS", "TTS SUCCESS! ttsReady=true engine=" + engine);
                 notifyTTSReady();
             }
@@ -378,6 +393,7 @@ public class MainActivity extends AppCompatActivity {
                 jsLog("info", "TTS", "Created TTS with system default engine");
             }
         } catch (Exception e) {
+            ttsInitInProgress = false;
             jsLog("error", "TTS", "initTTSWithEngine exception: " + e.getMessage());
             notifyTTSFailed();
         }
