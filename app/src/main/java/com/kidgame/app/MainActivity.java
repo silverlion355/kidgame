@@ -265,15 +265,16 @@ public class MainActivity extends AppCompatActivity {
             jsLog("warn", "TTS", "resolveActivity error: " + e.getMessage());
         }
 
-        // === New approach: use getEngines() to discover available TTS engines ===
-        jsLog("info", "TTS", "=== Scanning TTS engines via getEngines() ===");
-        jsLog("info", "TTS", "Creating temporary TTS to enumerate engines...");
+        // === Async approach: use getEngines() via a temp TTS, then init real TTS ===
+        // NOTE: We cannot use blocking Thread.sleep on the main thread — it blocks the
+        // Looper and prevents TextToSpeech.OnInitListener callbacks from firing.
+        // Instead we post a delayed check and call initTTSWithEngine from onInit itself.
 
+        jsLog("info", "TTS", "=== Scanning TTS engines via async getEngines() ===");
         final String[] selectedEngine = {null};
-        final boolean[] done = {false};
-
         final TextToSpeech[] tempTtsHolder = {null};
-        tempTtsHolder[0] = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+
+        final TextToSpeech.OnInitListener scanListener = new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
                 jsLog("info", "TTS", "Temp TTS onInit: status=" + status);
@@ -287,8 +288,7 @@ public class MainActivity extends AppCompatActivity {
                         for (TextToSpeech.EngineInfo ei : el) {
                             jsLog("info", "TTS", "  Engine: name=" + ei.name + " label=" + ei.label);
                         }
-                        // Priority: Google TTS > non-Xiaomi enabled > first available
-                        String preferred = null;
+                        // Priority: Google TTS > non-Xiaomi > first available
                         for (TextToSpeech.EngineInfo ei : el) {
                             if (ei.name != null && ei.name.contains("com.google.android.tts")) {
                                 selectedEngine[0] = ei.name;
@@ -310,35 +310,27 @@ public class MainActivity extends AppCompatActivity {
                             jsLog("info", "TTS", "Selected: first available = " + el.get(0).name);
                         }
                     }
-                    tempTtsHolder[0].shutdown();
+                    try { tempTtsHolder[0].shutdown(); } catch (Exception e) {}
                 } else {
                     jsLog("error", "TTS", "Temp TTS FAILED status=" + status);
-                    tempTtsHolder[0].shutdown();
+                    try { tempTtsHolder[0].shutdown(); } catch (Exception e) {}
                 }
-                done[0] = true;
-                // Now init real TTS
                 initTTSWithEngine(selectedEngine[0]);
             }
-        });
+        };
 
-        // Wait up to 3s for temp TTS
-        long deadline = System.currentTimeMillis() + 3000;
-        while (!done[0] && System.currentTimeMillis() < deadline) {
-            try { Thread.sleep(100); } catch (InterruptedException ie) {}
-        }
-        if (!done[0]) {
-            jsLog("warn", "TTS", "Temp TTS init timeout, initTTSWithEngine(null)");
-            initTTSWithEngine(null);
-        }
+        // Create temp TTS on this thread. onInit fires back on the main thread's looper
+        // (which is why blocking the main thread would deadlock).
+        jsLog("info", "TTS", "Creating temp TTS to enumerate engines...");
+        tempTtsHolder[0] = new TextToSpeech(this, scanListener);
 
-        // Safety timeout (8s total)
-        final Handler safetyHandler = new Handler(Looper.getMainLooper());
-        safetyHandler.postDelayed(new Runnable() {
+        // Safety timeout — if temp TTS never fires onInit (e.g. broken engine), fall back
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (!ttsReady) {
-                    jsLog("warn", "TTS", "TTS safety timeout - not ready after 8s!");
-                    notifyTTSFailed();
+                    jsLog("warn", "TTS", "TTS safety timeout — temp TTS never responded, trying system default");
+                    initTTSWithEngine(null);
                 }
             }
         }, 8000);
