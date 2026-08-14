@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -446,7 +447,31 @@ public class MainActivity extends AppCompatActivity {
         List<String[]> todo = new ArrayList<>(pendingSpeaks);
         pendingSpeaks.clear();
         for (String[] item : todo) {
-            speak(item[0], item[1]);
+            speakText(item[0], item[1]);
+        }
+    }
+
+    // 真正执行发音：内部类 TTSEngine 与补播逻辑 flushPendingSpeaks 共用
+    private void speakText(String text, String lang) {
+        try {
+            Locale locale = (lang != null && lang.toLowerCase().startsWith("en"))
+                    ? Locale.US : Locale.SIMPLIFIED_CHINESE;
+            int avail = tts.isLanguageAvailable(locale);
+            if (avail >= TextToSpeech.LANG_AVAILABLE) {
+                tts.setLanguage(locale);
+            } else {
+                tts.setLanguage(Locale.getDefault());
+            }
+            tts.setSpeechRate(1.0f);
+            tts.setPitch(1.0f);
+            HashMap<String, String> params = new HashMap<>();
+            params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tts-" + System.currentTimeMillis());
+            // 路由到音乐流，避免被系统/机型静音策略吞掉
+            params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
+            jsLog("info", "TTS", "speak: " + text.substring(0, Math.min(20, text.length())));
+        } catch (Exception e) {
+            jsLog("error", "TTS", "speak error: " + e.getMessage());
         }
     }
 
@@ -486,26 +511,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return;
             }
-            try {
-                Locale locale = (lang != null && lang.toLowerCase().startsWith("en"))
-                        ? Locale.US : Locale.SIMPLIFIED_CHINESE;
-                int avail = tts.isLanguageAvailable(locale);
-                if (avail >= TextToSpeech.LANG_AVAILABLE) {
-                    tts.setLanguage(locale);
-                } else {
-                    tts.setLanguage(Locale.getDefault());
-                }
-                tts.setSpeechRate(1.0f);
-                tts.setPitch(1.0f);
-                HashMap<String, String> params = new HashMap<>();
-                params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tts-" + System.currentTimeMillis());
-                // 路由到音乐流，避免被系统/机型静音策略吞掉
-                params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
-                tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
-                jsLog("info", "TTS", "speak: " + text.substring(0, Math.min(20, text.length())));
-            } catch (Exception e) {
-                jsLog("error", "TTS", "speak error: " + e.getMessage());
-            }
+            speakText(text, lang);
         }
 
         @JavascriptInterface
