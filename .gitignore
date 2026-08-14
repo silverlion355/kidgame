@@ -1,27 +1,26 @@
-# Gradle
+# ===== Gradle / 构建产物 =====
 .gradle/
 build/
-*/build/
-
-# Android
 *.apk
-*.ap_
-*.dex
+*.aab
+captures/
 
-# IDE
-.idea/
-*.iml
-.vscode/
+# ===== 签名密钥（已迁移到 GitHub Secrets，禁止入库）=====
+*.p12
+*.jks
+*.keystore
+kidgame.p12
 
-# Node
+# ===== 临时/产物（严禁入库的大文件）=====
+apktmp/
+*.zip
+*.bin
+
+# ===== Node =====
 node_modules/
 
-# OS
+# ===== OS / IDE =====
 .DS_Store
 Thumbs.db
-
-# Gradle wrapper
-!gradle/wrapper/gradle-wrapper.jar
-
-# Keystore (keep for consistent signing)
-# !kidgame.p12
+*.iml
+.idea/

@@ -37,6 +37,7 @@ const GameStorage = (function () {
       speed: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       pattern: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       points24: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
+      multtable: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       coins: 100,
       hints: 3,
       lastLoginDate: null,

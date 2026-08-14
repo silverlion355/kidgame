@@ -3,20 +3,24 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 33
 
+    // 版本号可由 CI 覆盖（每次构建递增 versionCode，保证覆盖安装不丢数据）
+    def _vc = project.hasProperty('versionCode') ? versionCode.toString().toInteger() : 15
+    def _vn = project.hasProperty('versionName') ? versionName : "1.25"
+
     defaultConfig {
         applicationId "com.kidgame.app"
         minSdkVersion 21
         targetSdkVersion 33
-        versionCode 15
-        versionName "1.25"
+        versionCode _vc
+        versionName _vn
     }
 
     signingConfigs {
         debug {
             storeFile file("${projectDir}/kidgame.p12")
-            storePassword "kidgame123"
-            keyAlias "kidgame"
-            keyPassword "kidgame123"
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "kidgame123"
+            keyAlias System.getenv("KEY_ALIAS") ?: "kidgame"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "kidgame123"
         }
     }
 

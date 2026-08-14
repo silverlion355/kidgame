@@ -10,6 +10,7 @@ import android.app.AlertDialog;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
+import android.media.AudioManager;
 import androidx.appcompat.app.AppCompatActivity;
 import android.widget.Toast;
 import android.os.Handler;
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean permissionRequested = false;
     private boolean ttsInitAttempted = false; // 防止重复初始化尝试
     private boolean ttsInitInProgress = false; // 防止安全超时触发重复initTTSWithEngine
+    private List<String[]> pendingSpeaks = new ArrayList<>(); // 未就绪时排队，就绪后补播
 
     // Helper: send log to JS GameStorage so user can see in app debug log
     private void jsLog(String level, String tag, String msg) {
@@ -298,7 +300,14 @@ public class MainActivity extends AppCompatActivity {
                         for (TextToSpeech.EngineInfo ei : el) {
                             jsLog("info", "TTS", "  Engine: name=" + ei.name + " label=" + ei.label);
                         }
-                        // Priority: Google TTS > non-Xiaomi > first available
+                    // 优先使用系统默认引擎（用户已在系统设置里配置，通常已装好语音包）
+                    String defEngine = tt.getDefaultEngine();
+                    jsLog("info", "TTS", "Temp TTS default engine: " + defEngine);
+                    if (defEngine != null && !defEngine.isEmpty()) {
+                        selectedEngine[0] = defEngine;
+                        jsLog("info", "TTS", "Selected: system default = " + defEngine);
+                    } else {
+                        // 回退：Google TTS > 非小米 > 首个可用
                         for (TextToSpeech.EngineInfo ei : el) {
                             if (ei.name != null && ei.name.contains("com.google.android.tts")) {
                                 selectedEngine[0] = ei.name;
@@ -319,6 +328,7 @@ public class MainActivity extends AppCompatActivity {
                             selectedEngine[0] = el.get(0).name;
                             jsLog("info", "TTS", "Selected: first available = " + el.get(0).name);
                         }
+                    }
                     }
                     try { tempTtsHolder[0].shutdown(); } catch (Exception e) {}
                 } else {
@@ -364,22 +374,28 @@ public class MainActivity extends AppCompatActivity {
                 }
                 String engine = tts.getDefaultEngine();
                 jsLog("info", "TTS", "Engine used: " + engine);
-                int langResult = tts.setLanguage(Locale.CHINA);
-                jsLog("info", "TTS", "setLanguage(CHINA)=" + langResult + " (" +
+                tts.setSpeechRate(1.0f);
+                tts.setPitch(1.0f);
+                int langResult = tts.setLanguage(Locale.SIMPLIFIED_CHINESE);
+                jsLog("info", "TTS", "setLanguage(SIMPLIFIED_CHINESE)=" + langResult + " (" +
                     (langResult == TextToSpeech.LANG_AVAILABLE ? "LANG_AVAILABLE" :
                      langResult == TextToSpeech.LANG_COUNTRY_AVAILABLE ? "LANG_COUNTRY_AVAILABLE" :
                      langResult == TextToSpeech.LANG_MISSING_DATA ? "LANG_MISSING_DATA" :
                      langResult == TextToSpeech.LANG_NOT_SUPPORTED ? "LANG_NOT_SUPPORTED" : "UNKNOWN") + ")");
                 if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    ttsReady = false;
+                    // 语音包缺失：仍标记就绪并补播排队请求，同时引导用户安装语音包
+                    ttsReady = true;
                     ttsInitInProgress = false;
-                    jsLog("warn", "TTS", "TTS engine does not support Chinese");
-                    notifyTTSFailed();
+                    jsLog("warn", "TTS", "Chinese voice data missing -> prompt install");
+                    flushPendingSpeaks();
+                    notifyTTSReady();
+                    promptInstallTtsData();
                     return;
                 }
                 ttsReady = true;
                 ttsInitInProgress = false;
                 jsLog("info", "TTS", "TTS SUCCESS! ttsReady=true engine=" + engine);
+                flushPendingSpeaks();
                 notifyTTSReady();
             }
         };
@@ -423,6 +439,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // TTS 就绪后补播排队请求
+    private void flushPendingSpeaks() {
+        if (pendingSpeaks.isEmpty()) return;
+        jsLog("info", "TTS", "flushing " + pendingSpeaks.size() + " pending speaks");
+        List<String[]> todo = new ArrayList<>(pendingSpeaks);
+        pendingSpeaks.clear();
+        for (String[] item : todo) {
+            speak(item[0], item[1]);
+        }
+    }
+
+    // 引导用户安装中文语音包（小米等机型常因缺语音包而静音）
+    private void promptInstallTtsData() {
+        try {
+            Intent install = new Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
+            install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(install);
+            Toast.makeText(MainActivity.this, "请安装中文语音包后重试发音", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            jsLog("warn", "TTS", "cannot launch install TTS data: " + e.getMessage());
+        }
+    }
+
     // JavaScript interface for TTS
     private class TTSEngine {
         @JavascriptInterface
@@ -437,25 +476,31 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public void speak(String text, String lang) {
-            if (!ttsReady || text == null || text.isEmpty()) return;
-
-            try {
-                Locale locale;
-                if (lang != null && lang.toLowerCase().startsWith("en")) {
-                    locale = Locale.US;
-                } else {
-                    locale = Locale.CHINA;
+            if (text == null || text.isEmpty()) return;
+            // 未就绪：排队，待 TTS 初始化完成后补播（修复小米等机型首点无声音）
+            if (!ttsReady || tts == null) {
+                pendingSpeaks.add(new String[]{text, lang});
+                jsLog("warn", "TTS", "speak queued (not ready): " + text.substring(0, Math.min(20, text.length())));
+                if (tts == null && !ttsInitAttempted) {
+                    checkAndInitTTS();
                 }
-
+                return;
+            }
+            try {
+                Locale locale = (lang != null && lang.toLowerCase().startsWith("en"))
+                        ? Locale.US : Locale.SIMPLIFIED_CHINESE;
                 int avail = tts.isLanguageAvailable(locale);
                 if (avail >= TextToSpeech.LANG_AVAILABLE) {
                     tts.setLanguage(locale);
                 } else {
                     tts.setLanguage(Locale.getDefault());
                 }
-
+                tts.setSpeechRate(1.0f);
+                tts.setPitch(1.0f);
                 HashMap<String, String> params = new HashMap<>();
                 params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tts-" + System.currentTimeMillis());
+                // 路由到音乐流，避免被系统/机型静音策略吞掉
+                params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
                 tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
                 jsLog("info", "TTS", "speak: " + text.substring(0, Math.min(20, text.length())));
             } catch (Exception e) {

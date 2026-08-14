@@ -222,11 +222,30 @@ const MathGame = (function() {
     return result;
   }
 
+  // ===== 99乘法表 =====
+  function generateMultTable() {
+    var a = randInt(1, 9);
+    var b = randInt(1, 9);
+    var answer = a * b;
+    var q = a + ' × ' + b + ' = ?';
+    var opts = shuffle([answer, answer + randInt(1, 9), answer - randInt(1, 9), answer + randInt(-9, -1)])
+      .filter(function(x, i, arr) { return arr.indexOf(x) === i && x >= 0; })
+      .slice(0, 4);
+    if (opts.length < 4) {
+      for (var i = 0; i < 10 && opts.length < 4; i++) {
+        var x = answer + randInt(-20, 20);
+        if (x >= 0 && opts.indexOf(x) === -1) opts.push(x);
+      }
+    }
+    return { type: 'multtable', q: q, options: opts, answer: answer };
+  }
+
   // ===== 生成题目 =====
   function generateQuestion() {
     if (currentGame === 'speed') return generateSpeedMath();
     if (currentGame === 'pattern') return generatePattern();
     if (currentGame === '24points') return generate24Points();
+    if (currentGame === 'multtable') return generateMultTable();
     return generateSpeedMath();
   }
 
@@ -235,7 +254,8 @@ const MathGame = (function() {
     var gameInfo = {
       'speed': { name: '速算挑战', icon: '＋－', color: '#E3F2FD' },
       'pattern': { name: '找规律', icon: '◎', color: '#FFF3E0' },
-      '24points': { name: '凑24点', icon: '✦', color: '#E8F5E9' }
+      '24points': { name: '凑24点', icon: '✦', color: '#E8F5E9' },
+      'multtable': { name: '99乘法表', icon: '✖', color: '#F3E5F5' }
     };
     var info = gameInfo[currentGame] || { name: '', icon: '', color: '' };
     var progress = getGameProgress(currentGame);
@@ -282,7 +302,8 @@ const MathGame = (function() {
     var gameTitle = {
       'speed': '速算挑战',
       'pattern': '找规律',
-      '24points': '凑24点'
+      '24points': '凑24点',
+      'multtable': '99乘法表'
     };
 
     var progress = (questionCount - 1) % QUESTIONS_PER_LEVEL + 1;
@@ -327,10 +348,11 @@ const MathGame = (function() {
   }
 
   // ===== 计算金币奖励 =====
-  function calculateCoins() {
+  function calculateCoins(stars) {
     var mult = getScoreMultiplier();
-    // 每10分得1金币
-    var baseCoins = Math.floor(score / 10);
+    // 与主科一致：星级 * 10 为基础金币，礼物倍数加成（上限 2 倍）
+    var s = (typeof stars === 'number' && stars > 0) ? stars : 1;
+    var baseCoins = s * 10;
     return Math.max(1, Math.round(baseCoins * mult));
   }
 
@@ -340,7 +362,7 @@ const MathGame = (function() {
     var starsStr = '';
     for (var i = 0; i < 3; i++) starsStr += i < stars ? '★' : '☆';
     var msg = stars >= 3 ? '太厉害了！' : (stars >= 2 ? '不错，继续加油！' : '再试一次吧！');
-    var coins = calculateCoins();
+    var coins = calculateCoins(stars);
     var mult = getScoreMultiplier();
 
     // 保存星级
@@ -369,7 +391,8 @@ const MathGame = (function() {
       if (progress.stars[i]) totalStars += progress.stars[i];
     }
     var msg = correctCount >= TOTAL_QUESTIONS * 0.8 ? '太厉害了！' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '不错，继续加油！' : '再试一次吧！');
-    var coins = calculateCoins();
+    var stars = correctCount >= TOTAL_QUESTIONS * 0.8 ? 3 : (correctCount >= TOTAL_QUESTIONS * 0.5 ? 2 : 1);
+    var coins = calculateCoins(stars);
     var mult = getScoreMultiplier();
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
@@ -597,6 +620,11 @@ const MathGame = (function() {
       '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'24points\')">' +
         '<div class="subject-icon" style="background:#E8F5E9;font-size:28px;">✦</div>' +
         '<div class="subject-info"><h3>凑24点</h3><p>用四个数字计算24点！</p></div>' +
+        '<div>›</div>' +
+      '</div>' +
+      '<div class="subject-card fade-in" onclick="MathGame.showLevelSelect(\'multtable\')">' +
+        '<div class="subject-icon" style="background:#F3E5F5;font-size:28px;">✖</div>' +
+        '<div class="subject-info"><h3>99乘法表</h3><p>1×1 到 9×9，背熟乘法口诀！</p></div>' +
         '<div>›</div>' +
       '</div>' +
     '</div>' +

@@ -9,6 +9,9 @@ concurrency:
   group: apk-build
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,14 +28,33 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Download Gradle 7.5
+      # 从 GitHub Secrets 还原签名密钥（仓库内不再存放明文 p12）
+      - name: Restore signing key
         run: |
-          curl -L --retry 3 --retry-delay 10 -o /tmp/gradle-7.5-bin.zip "https://services.gradle.org/distributions/gradle-7.5-bin.zip"
-          unzip -o /tmp/gradle-7.5-bin.zip -d /tmp/
-          /tmp/gradle-7.5/bin/gradle --version
+          echo "$SIGNING_KEY" | base64 -d > app/kidgame.p12
+          ls -l app/kidgame.p12
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
 
+      # 计算版本号：每次构建递增 versionCode，保证覆盖安装（升级）不丢数据
+      - name: Compute version
+        id: ver
+        run: |
+          VC=$((1000 + GITHUB_RUN_NUMBER))
+          VN="1.26.${GITHUB_RUN_NUMBER}"
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          echo "versionName=$VN" >> "$GITHUB_OUTPUT"
+          echo "Building versionCode=$VC versionName=$VN"
+
+      # 使用仓库自带的 gradle wrapper 构建（稳定、可复现）
       - name: Build Debug APK
-        run: /tmp/gradle-7.5/bin/gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug -PversionCode=${{ steps.ver.outputs.versionCode }} -PversionName="${{ steps.ver.outputs.versionName }}" --no-daemon --stacktrace
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -40,7 +62,24 @@ jobs:
           name: kidgame-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
-      - name: Send APK via Lark
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: v${{ github.run_number }}
+          name: 萌娃闯关 v${{ github.run_number }}
+          body: |
+            自动构建的 Debug APK。
+            - 覆盖安装即可升级，学习数据不会丢失。
+            - versionCode ${{ steps.ver.outputs.versionCode }} / versionName ${{ steps.ver.outputs.versionName }}
+          files: app/build/outputs/apk/debug/*.apk
+
+      - name: Send APK via Lark (Feishu)
+        if: success()
+        env:
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_USER_ID: ${{ secrets.FEISHU_USER_ID }}
         run: |
           node -e "
           const fs = require('fs');
@@ -51,9 +90,9 @@ jobs:
           const TOKEN_URL = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
           const UPLOAD_URL = 'https://open.feishu.cn/open-apis/im/v1/files';
           const MSG_URL = 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id';
-          const USER_ID = 'ou_e29bb5900c6bb809e8987e64be1b673b';
-          const APP_ID = 'cli_a97ae0dd73b81bd4';
-          const APP_SECRET = 'mV5QTa5hK8Ph43DLHT0LmeBZH5KTolWn';
+          const USER_ID = process.env.FEISHU_USER_ID;
+          const APP_ID = process.env.FEISHU_APP_ID;
+          const APP_SECRET = process.env.FEISHU_APP_SECRET;
 
           function postJson(url, body, token) {
             return new Promise((resolve, reject) => {

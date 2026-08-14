@@ -1,12 +1,352 @@
 [
-  { "id": "gift_001", "name": "小星星", "icon": "⭐", "price": 50, "desc": "闪闪发光的小星星" },
-  { "id": "gift_002", "name": "小花朵", "icon": "🌸", "price": 80, "desc": "一朵美丽的花朵" },
-  { "id": "gift_003", "name": "小皇冠", "icon": "👑", "price": 120, "desc": "小小国王的皇冠" },
-  { "id": "gift_004", "name": "小火箭", "icon": "🚀", "price": 150, "desc": "嗖——飞上天啦" },
-  { "id": "gift_005", "name": "小蛋糕", "icon": "🎂", "price": 100, "desc": "香甜可口的小蛋糕" },
-  { "id": "gift_006", "name": "小气球", "icon": "🎈", "price": 60, "desc": "五颜六色的小气球" },
-  { "id": "gift_007", "name": "小奖杯", "icon": "🏆", "price": 200, "desc": "你是第一名！" },
-  { "id": "gift_008", "name": "小礼物盒", "icon": "🎁", "price": 180, "desc": "里面藏着惊喜哦" },
-  { "id": "gift_009", "name": "小彩虹", "icon": "🌈", "price": 160, "desc": "雨后的美丽彩虹" },
-  { "id": "gift_010", "name": "小月亮", "icon": "🌙", "price": 140, "desc": "晚上陪你睡觉" }
+  {
+    "id": "gift_001",
+    "name": "小星星",
+    "icon": "⭐",
+    "price": 50,
+    "desc": "闪闪发光的小星星"
+  },
+  {
+    "id": "gift_002",
+    "name": "小花朵",
+    "icon": "🌸",
+    "price": 80,
+    "desc": "一朵美丽的花朵"
+  },
+  {
+    "id": "gift_003",
+    "name": "小皇冠",
+    "icon": "👑",
+    "price": 120,
+    "desc": "小小国王的皇冠"
+  },
+  {
+    "id": "gift_004",
+    "name": "小火箭",
+    "icon": "🚀",
+    "price": 150,
+    "desc": "嗖——飞上天啦"
+  },
+  {
+    "id": "gift_005",
+    "name": "小蛋糕",
+    "icon": "🎂",
+    "price": 100,
+    "desc": "香甜可口的小蛋糕"
+  },
+  {
+    "id": "gift_006",
+    "name": "小气球",
+    "icon": "🎈",
+    "price": 60,
+    "desc": "五颜六色的小气球"
+  },
+  {
+    "id": "gift_007",
+    "name": "小奖杯",
+    "icon": "🏆",
+    "price": 200,
+    "desc": "你是第一名！"
+  },
+  {
+    "id": "gift_008",
+    "name": "小礼物盒",
+    "icon": "🎁",
+    "price": 180,
+    "desc": "里面藏着惊喜哦"
+  },
+  {
+    "id": "gift_009",
+    "name": "小彩虹",
+    "icon": "🌈",
+    "price": 160,
+    "desc": "雨后的美丽彩虹"
+  },
+  {
+    "id": "gift_010",
+    "name": "小月亮",
+    "icon": "🌙",
+    "price": 140,
+    "desc": "晚上陪你睡觉"
+  },
+  {
+    "id": "gift_011",
+    "name": "小太阳",
+    "icon": "☀️",
+    "price": 70,
+    "desc": "暖暖的小太阳"
+  },
+  {
+    "id": "gift_012",
+    "name": "小铃铛",
+    "icon": "🔔",
+    "price": 90,
+    "desc": "叮铃叮铃响"
+  },
+  {
+    "id": "gift_013",
+    "name": "小爱心",
+    "icon": "💖",
+    "price": 110,
+    "desc": "满满的爱意"
+  },
+  {
+    "id": "gift_014",
+    "name": "小糖果",
+    "icon": "🍬",
+    "price": 65,
+    "desc": "甜甜的糖果"
+  },
+  {
+    "id": "gift_015",
+    "name": "小冰激凌",
+    "icon": "🍦",
+    "price": 95,
+    "desc": "夏天的最爱"
+  },
+  {
+    "id": "gift_016",
+    "name": "小苹果",
+    "icon": "🍎",
+    "price": 75,
+    "desc": "每天一个苹果"
+  },
+  {
+    "id": "gift_017",
+    "name": "小香蕉",
+    "icon": "🍌",
+    "price": 85,
+    "desc": "弯弯的香蕉"
+  },
+  {
+    "id": "gift_018",
+    "name": "小葡萄",
+    "icon": "🍇",
+    "price": 130,
+    "desc": "串串紫葡萄"
+  },
+  {
+    "id": "gift_019",
+    "name": "小西瓜",
+    "icon": "🍉",
+    "price": 140,
+    "desc": "清凉一夏"
+  },
+  {
+    "id": "gift_020",
+    "name": "小草莓",
+    "icon": "🍓",
+    "price": 120,
+    "desc": "红红的草莓"
+  },
+  {
+    "id": "gift_021",
+    "name": "小汽车",
+    "icon": "🚗",
+    "price": 160,
+    "desc": "嘟嘟出发啦"
+  },
+  {
+    "id": "gift_022",
+    "name": "小飞机",
+    "icon": "✈️",
+    "price": 180,
+    "desc": "飞向蓝天"
+  },
+  {
+    "id": "gift_023",
+    "name": "小火车",
+    "icon": "🚂",
+    "price": 200,
+    "desc": "轰隆轰隆"
+  },
+  {
+    "id": "gift_024",
+    "name": "小帆船",
+    "icon": "⛵",
+    "price": 150,
+    "desc": "扬帆远航"
+  },
+  {
+    "id": "gift_025",
+    "name": "小自行车",
+    "icon": "🚲",
+    "price": 170,
+    "desc": "叮铃出发"
+  },
+  {
+    "id": "gift_026",
+    "name": "小恐龙",
+    "icon": "🦕",
+    "price": 220,
+    "desc": "远古的朋友"
+  },
+  {
+    "id": "gift_027",
+    "name": "小熊猫",
+    "icon": "🐼",
+    "price": 240,
+    "desc": "圆滚滚真可爱"
+  },
+  {
+    "id": "gift_028",
+    "name": "小兔子",
+    "icon": "🐰",
+    "price": 130,
+    "desc": "长耳朵蹦蹦跳"
+  },
+  {
+    "id": "gift_029",
+    "name": "小老虎",
+    "icon": "🐯",
+    "price": 210,
+    "desc": "森林之王"
+  },
+  {
+    "id": "gift_030",
+    "name": "小狮子",
+    "icon": "🦁",
+    "price": 230,
+    "desc": "威风的鬃毛"
+  },
+  {
+    "id": "gift_031",
+    "name": "小大象",
+    "icon": "🐘",
+    "price": 250,
+    "desc": "长长的鼻子"
+  },
+  {
+    "id": "gift_032",
+    "name": "小猴子",
+    "icon": "🐵",
+    "price": 190,
+    "desc": "机灵的小猴"
+  },
+  {
+    "id": "gift_033",
+    "name": "小青蛙",
+    "icon": "🐸",
+    "price": 110,
+    "desc": "呱呱呱"
+  },
+  {
+    "id": "gift_034",
+    "name": "小企鹅",
+    "icon": "🐧",
+    "price": 200,
+    "desc": "南极的小家伙"
+  },
+  {
+    "id": "gift_035",
+    "name": "小海豚",
+    "icon": "🐬",
+    "price": 260,
+    "desc": "聪明的小海豚"
+  },
+  {
+    "id": "gift_036",
+    "name": "小章鱼",
+    "icon": "🐙",
+    "price": 240,
+    "desc": "八只小脚"
+  },
+  {
+    "id": "gift_037",
+    "name": "小蝴蝶",
+    "icon": "🦋",
+    "price": 150,
+    "desc": "翩翩起舞"
+  },
+  {
+    "id": "gift_038",
+    "name": "小蜜蜂",
+    "icon": "🐝",
+    "price": 100,
+    "desc": "勤劳的小蜜蜂"
+  },
+  {
+    "id": "gift_039",
+    "name": "小亮星",
+    "icon": "🌟",
+    "price": 160,
+    "desc": "闪亮的小星"
+  },
+  {
+    "id": "gift_040",
+    "name": "小音符",
+    "icon": "🎵",
+    "price": 90,
+    "desc": "叮咚音符"
+  },
+  {
+    "id": "gift_041",
+    "name": "小吉他",
+    "icon": "🎸",
+    "price": 200,
+    "desc": "弹起小吉他"
+  },
+  {
+    "id": "gift_042",
+    "name": "小鼓",
+    "icon": "🥁",
+    "price": 180,
+    "desc": "咚咚锵"
+  },
+  {
+    "id": "gift_043",
+    "name": "小画笔",
+    "icon": "🖌️",
+    "price": 120,
+    "desc": "画出小世界"
+  },
+  {
+    "id": "gift_044",
+    "name": "小书本",
+    "icon": "📚",
+    "price": 140,
+    "desc": "爱看书的宝宝"
+  },
+  {
+    "id": "gift_045",
+    "name": "小铅笔",
+    "icon": "✏️",
+    "price": 60,
+    "desc": "写写画画"
+  },
+  {
+    "id": "gift_046",
+    "name": "小宝石",
+    "icon": "💎",
+    "price": 300,
+    "desc": "闪亮的宝石"
+  },
+  {
+    "id": "gift_047",
+    "name": "小钥匙",
+    "icon": "🔑",
+    "price": 110,
+    "desc": "打开宝藏箱"
+  },
+  {
+    "id": "gift_048",
+    "name": "小魔法棒",
+    "icon": "🪄",
+    "price": 280,
+    "desc": "变出小惊喜"
+  },
+  {
+    "id": "gift_049",
+    "name": "小城堡",
+    "icon": "🏰",
+    "price": 350,
+    "desc": "公主的城堡"
+  },
+  {
+    "id": "gift_050",
+    "name": "小烟花",
+    "icon": "🎆",
+    "price": 320,
+    "desc": "庆祝时刻"
+  }
 ]
