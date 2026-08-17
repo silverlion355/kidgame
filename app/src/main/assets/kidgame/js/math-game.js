@@ -17,16 +17,22 @@ const MathGame = (function() {
 
   // 触摸滑动手势
   var touchStartX = 0;
+  var touchStartY = 0;
   function initSwipeHandler() {
     var screen = document.getElementById('math-screen');
     if (!screen) return;
     screen.ontouchstart = function(e) {
-      if (e.touches && e.touches[0]) touchStartX = e.touches[0].clientX;
+      if (e.touches && e.touches[0]) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
     };
     screen.ontouchend = function(e) {
       if (!e.changedTouches || !e.changedTouches[0]) return;
       var dx = e.changedTouches[0].clientX - touchStartX;
-      if (dx > 80 && Math.abs(e.changedTouches[0].clientY - touchStartX) < 100) {
+      var dy = e.changedTouches[0].clientY - touchStartY;
+      // 仅水平右滑触发返回，避免竖向滑动/点击选项误触发
+      if (dx > 80 && Math.abs(dy) < 100) {
         goBack();
       }
     };
@@ -49,23 +55,34 @@ const MathGame = (function() {
   }
 
   // ===== 读取进度 =====
-  function getGameProgress(gameType) {
-    var p = GameStorage.getProgress();
-    return p[gameType] || { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+  // storage 里凑24点的键名是 points24（与 gameType '24points' 不同），统一映射，避免过关保存星级时崩溃
+  function gameProgressKey(gameType) {
+    return gameType === '24points' ? 'points24' : gameType;
   }
 
-  // ===== 保存关卡星级 =====
+  function getGameProgress(gameType) {
+    var p = GameStorage.getProgress();
+    var key = gameProgressKey(gameType);
+    if (!p[key]) p[key] = { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+    return p[key];
+  }
+
+  // ===== 保存关卡星级（返回是否首次/升星，用于控制金币发放，防刷关）=====
   function saveLevelStars(gameType, level, stars) {
     var p = GameStorage.getProgress();
-    var prev = p[gameType].stars[level] || 0;
-    if (stars > prev) {
-      p[gameType].stars[level] = stars;
+    var key = gameProgressKey(gameType);
+    if (!p[key]) p[key] = { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+    var prev = p[key].stars[level] || 0;
+    var improved = stars > prev;
+    if (improved) {
+      p[key].stars[level] = stars;
     }
-    if (level >= p[gameType].highestLevel) {
-      p[gameType].highestLevel = level + 1;
-      p[gameType].unlockedLevel = Math.max(p[gameType].unlockedLevel, level + 1);
+    if (level >= p[key].highestLevel) {
+      p[key].highestLevel = level + 1;
+      p[key].unlockedLevel = Math.max(p[key].unlockedLevel, level + 1);
     }
     GameStorage.saveProgress(p);
+    return { improved: improved, prev: prev };
   }
 
   // ===== 速算挑战 =====
@@ -337,6 +354,7 @@ const MathGame = (function() {
       });
     }
     html += '</div>';
+    html += '<div id="math-feedback" style="display:none;text-align:center;font-size:18px;font-weight:bold;margin:12px 0;min-height:26px;"></div>';
 
     return html;
   }
@@ -358,23 +376,33 @@ const MathGame = (function() {
 
   // ===== 渲染关卡完成 =====
   function renderLevelComplete() {
+    // 一题未答对：不算过关，不发星不发币，重试当前关
+    if (levelCorrectCount <= 0) {
+      return '<div class="question-card fade-in" style="text-align:center;">' +
+        '<h2>差一点点！</h2>' +
+        '<p style="font-size:20px;">答对 ' + levelCorrectCount + ' / ' + QUESTIONS_PER_LEVEL + ' 题</p>' +
+        '<p style="color:#666;">全部答错无法过关，再试一次吧！</p>' +
+        '<div style="margin-top:20px;">' +
+          '<button class="modal-btn" onclick="MathGame.retryLevel()">重新挑战</button>' +
+          '<button class="modal-btn secondary" onclick="MathGame.backToLevels()" style="margin-top:8px;">返回关卡</button>' +
+        '</div>' +
+      '</div>';
+    }
     var stars = levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.8 ? 3 : (levelCorrectCount >= QUESTIONS_PER_LEVEL * 0.5 ? 2 : 1);
     var starsStr = '';
     for (var i = 0; i < 3; i++) starsStr += i < stars ? '★' : '☆';
     var msg = stars >= 3 ? '太厉害了！' : (stars >= 2 ? '不错，继续加油！' : '再试一次吧！');
-    var coins = calculateCoins(stars);
+    // 保存星级；仅首次/升星才发金币，避免重复刷关刷金币
+    var saved = saveLevelStars(currentGame, currentLevel, stars);
+    var coins = saved.improved ? calculateCoins(stars) : 0;
+    if (coins > 0) GameStorage.addCoins(coins);
     var mult = getScoreMultiplier();
-
-    // 保存星级
-    saveLevelStars(currentGame, currentLevel, stars);
-    // 奖励金币
-    GameStorage.addCoins(coins);
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>过关啦！</h2>' +
       '<div style="font-size:48px;margin:20px 0;">' + starsStr + '</div>' +
       '<p style="font-size:20px;">第 ' + currentLevel + ' 关 完成！</p>' +
-      '<p>获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') + '</p>' +
+      '<p>' + (coins > 0 ? '获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') : '已通关，无新增金币') + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
         '<button class="modal-btn" onclick="MathGame.nextLevel()">下一关</button>' +
@@ -392,13 +420,15 @@ const MathGame = (function() {
     }
     var msg = correctCount >= TOTAL_QUESTIONS * 0.8 ? '太厉害了！' : (correctCount >= TOTAL_QUESTIONS * 0.5 ? '不错，继续加油！' : '再试一次吧！');
     var stars = correctCount >= TOTAL_QUESTIONS * 0.8 ? 3 : (correctCount >= TOTAL_QUESTIONS * 0.5 ? 2 : 1);
-    var coins = calculateCoins(stars);
+    // 一题未对不奖励金币
+    var coins = correctCount > 0 ? calculateCoins(stars) : 0;
+    if (coins > 0) GameStorage.addCoins(coins);
     var mult = getScoreMultiplier();
 
     return '<div class="question-card fade-in" style="text-align:center;">' +
       '<h2>本轮结束！</h2>' +
       '<p style="font-size:20px;">总得分: ' + score + '</p>' +
-      '<p>获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') + '</p>' +
+      '<p>' + (coins > 0 ? '获得 🪙 ' + coins + ' 金币' + (mult > 1 ? ' (×' + mult.toFixed(1) + ')' : '') : '继续努力，下次获得金币！') + '</p>' +
       '<p>答对: ' + correctCount + ' / ' + TOTAL_QUESTIONS + '</p>' +
       '<p style="color:#666;">' + msg + '</p>' +
       '<div style="margin-top:20px;">' +
@@ -435,6 +465,7 @@ const MathGame = (function() {
         GameStorage.addLog('info', 'math-screen existing: ' + !!existing);
         if (existing) {
           existing.className = 'screen active';
+          existing.style.display = ''; // 修复返回首页后再次进入白屏
           existing.innerHTML = renderMathMenu();
           GameStorage.addLog('info', 'math-screen innerHTML replaced');
         } else {
@@ -473,6 +504,7 @@ const MathGame = (function() {
       // 重置到关卡选择界面
       var screen = document.getElementById('math-screen');
       screen.className = 'screen active';
+      screen.style.display = ''; // 修复白屏
       screen.innerHTML = renderLevelSelect();
 
       setTimeout(function() { renderLevelButtons(); }, 50);
@@ -507,11 +539,10 @@ const MathGame = (function() {
         // 在游戏中，确认退出
         this.confirmExit();
       } else {
-        // 返回主菜单或隐藏
+        // 返回主菜单或隐藏（不再设 display:none，交给 App.showScreen 统一管理，避免再进白屏）
         screen.className = 'screen';
         if (currentGame === null) {
-          // 从主菜单返回，直接隐藏并回到首页
-          screen.style.display = 'none';
+          // 从主菜单返回，直接回到首页
           if (typeof App !== 'undefined' && App.showScreen) {
             App.showScreen('home-screen');
           }
@@ -546,6 +577,11 @@ const MathGame = (function() {
       document.getElementById('math-game-area').innerHTML = renderGameArea();
     },
 
+    // 未过关时重试当前关卡
+    retryLevel: function() {
+      this.startLevel(currentLevel);
+    },
+
     backToLevels: function() {
       document.getElementById('math-game-area').style.display = 'none';
       document.getElementById('math-level-grid').style.display = '';
@@ -557,13 +593,24 @@ const MathGame = (function() {
     },
 
     checkAnswer: function(selected) {
-      var correct = false;
+      var btns = document.querySelectorAll('#math-options .option-btn');
       var answer = currentQuestion ? currentQuestion.answer : '';
+      var correct = String(selected) === String(answer);
+      if (!correct && currentGame === '24points') {
+        correct = String(selected).indexOf('24') !== -1;
+      }
 
-      if (String(selected) === String(answer)) {
-        correct = true;
-      } else if (currentGame === '24points') {
-        correct = String(selected).indexOf('24') !== -1 || selected === answer;
+      // 锁定选项并给红/绿视觉反馈（修复“答错没反应”）
+      var chosenBtn = null;
+      btns.forEach(function(b) {
+        b.disabled = true;
+        b.classList.add('disabled');
+        if (b.textContent.trim() === String(selected)) chosenBtn = b;
+        if (b.textContent.trim() === String(answer)) b.classList.add('correct');
+      });
+      if (chosenBtn && !correct) {
+        chosenBtn.classList.add('wrong');
+        chosenBtn.classList.add('shake');
       }
 
       if (correct) {
@@ -575,23 +622,31 @@ const MathGame = (function() {
         App.playWrongSound();
       }
 
+      var fb = document.getElementById('math-feedback');
+      if (fb) {
+        fb.style.display = 'block';
+        fb.textContent = correct ? '✅ 答对了！' : '❌ 正确答案是 ' + answer;
+        fb.style.color = correct ? '#2e7d32' : '#c62828';
+      }
+
       questionCount++;
 
-      // 检查关卡完成（每5题）
-      var progress = (questionCount - 1) % QUESTIONS_PER_LEVEL + 1;
-      if (questionCount > 0 && questionCount % QUESTIONS_PER_LEVEL === 0) {
-        // 关卡完成
-        if (questionCount >= TOTAL_QUESTIONS) {
+      // 留出反馈时间再进入下一题（答对短、答错长）
+      var delay = correct ? 450 : 1200;
+      setTimeout(function() {
+        if (questionCount % QUESTIONS_PER_LEVEL === 0) {
+          if (questionCount >= TOTAL_QUESTIONS) {
+            document.getElementById('math-game-area').innerHTML = renderResult();
+          } else {
+            document.getElementById('math-game-area').innerHTML = renderLevelComplete();
+          }
+        } else if (questionCount >= TOTAL_QUESTIONS) {
           document.getElementById('math-game-area').innerHTML = renderResult();
         } else {
-          document.getElementById('math-game-area').innerHTML = renderLevelComplete();
+          currentQuestion = generateQuestion();
+          document.getElementById('math-game-area').innerHTML = renderGameArea();
         }
-      } else if (questionCount >= TOTAL_QUESTIONS) {
-        document.getElementById('math-game-area').innerHTML = renderResult();
-      } else {
-        currentQuestion = generateQuestion();
-        document.getElementById('math-game-area').innerHTML = renderGameArea();
-      }
+      }, delay);
     },
 
     getHtml: function() {
