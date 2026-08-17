@@ -562,17 +562,13 @@ function checkAndroidTTS() {
 
     GameStorage.addLog('info', '[speakQuestion] text=' + text + ' lang=' + lang + ' androidTTS=' + checkAndroidTTS());
 
-    // 直接尝试发音，不再等待Android TTS初始化
-    // 因为Java端会在初始化完成后调用 onAndroidTTSReady，我们使用这个标志
-    if (checkAndroidTTS()) {
+    // 优先原生 TTS：直接调用 speak，Java 端未就绪会自动排队补播；
+    // 不再回退 Web Speech（安卓 WebView 里基本静音，是无声主因）
+    if (window.AndroidTTS) {
       speakWithAndroidTTS(text, lang);
-    } else if (_ttsInitialized) {
-      // TTS已经尝试初始化但不可用，直接使用Web Speech
-      speakWithWebSpeech(text, lang);
     } else {
-      // TTS可能还在初始化中，保存参数用于重试
-      _pendingSpeak = { text: text, lang: lang, retries: 0 };
-      _doSpeakQuestion();
+      // 非安卓环境（浏览器/PWA）才用 Web Speech
+      speakWithWebSpeech(text, lang);
     }
 
     // 启动倒计时
@@ -590,19 +586,19 @@ function checkAndroidTTS() {
     // 清除之前的重试定时器
     if (_speakRetryTimer) { clearTimeout(_speakRetryTimer); _speakRetryTimer = null; }
 
-    if (checkAndroidTTS()) {
+    if (window.AndroidTTS) {
+      // 原生 TTS 存在即直接调用（Java 端排队补播），不再检查 isAvailable
       speakWithAndroidTTS(text, lang);
     } else {
-      // Android TTS 可能还没初始化好，等待一段时间后重试
+      // 安卓接口尚未注入：短暂重试后仍无则回退 Web Speech
       if (_pendingSpeak.retries < 5) {
         _pendingSpeak.retries++;
-        console.log("[speakQuestion] AndroidTTS not ready, retry " + _pendingSpeak.retries + "/5 in 300ms");
+        console.log("[speakQuestion] AndroidTTS not injected, retry " + _pendingSpeak.retries + "/5 in 300ms");
         _speakRetryTimer = setTimeout(function() {
           _doSpeakQuestion();
         }, 300);
       } else {
-        // 重试次数用尽，回退到 Web Speech API
-        console.warn("[speakQuestion] AndroidTTS not available after retries, trying Web Speech");
+        console.warn("[speakQuestion] AndroidTTS unavailable after retries, trying Web Speech");
         speakWithWebSpeech(text, lang);
       }
     }
