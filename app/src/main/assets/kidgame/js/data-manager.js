@@ -158,26 +158,40 @@ const DataManager = (function () {
   function buildPoemQuestion(item, allData) {
     var verseIdx = Math.floor(Math.random() * item.content.length);
     var verse = item.content[verseIdx];
-    
-    // Pick a meaningful 2-char word
-    var words = [];
+
+    // 优先抽取诗句中“完整且成词”的 2 字片段，避免跨词挖空
+    var wordCandidates = [];
     for (var w = 0; w <= verse.length - 2; w++) {
-      words.push({ word: verse.substring(w, w + 2), start: w });
+      var seg = verse.substring(w, w + 2);
+      if (isCommonWord(seg)) {
+        wordCandidates.push({ word: seg, start: w });
+      }
     }
-    var pick = words[Math.floor(Math.random() * words.length)];
+
+    var pick;
+    if (wordCandidates.length > 0) {
+      // 命中完整词：随机挖一个整词
+      pick = wordCandidates[Math.floor(Math.random() * wordCandidates.length)];
+    } else {
+      // 退化：挖单个字（单字天然不会跨词）
+      var idx = Math.floor(Math.random() * verse.length);
+      pick = { word: verse.charAt(idx), start: idx };
+    }
+
     var correctWord = pick.word;
     var startIdx = pick.start;
-    
-    // Generate blank of correct length
+
+    // 生成对应长度的填空
     var blank = '{{BLANK:' + correctWord.length + '}}';
     var qText = verse.substring(0, startIdx) + blank + verse.substring(startIdx + correctWord.length);
-    
+
     var wrongs = pickPoemWordWrongs(item, allData, correctWord, 3);
     var options = shuffle([correctWord].concat(wrongs));
     return { type: "choice", q: qText, options: options, answer: correctWord, poemId: item.id };
   }
 
   function pickPoemWordWrongs(item, allData, correctWord, count) {
+    var isSingle = correctWord.length === 1;
     var tagPool = allData.filter(function(i) {
       return i._index !== item._index &&
         i.difficulty >= item.difficulty - 1 && i.difficulty <= item.difficulty + 1 &&
@@ -187,9 +201,10 @@ const DataManager = (function () {
     var words = new Set();
     tagPool.forEach(function(i) {
       i.content.forEach(function(v) {
-        for (var j = 0; j <= v.length - 2; j++) {
-          var w = v.substring(j, j + 2);
-          if (w !== correctWord && isCommonWord(w)) {
+        var maxJ = isSingle ? v.length - 1 : v.length - 2;
+        for (var j = 0; j <= maxJ; j++) {
+          var w = isSingle ? v.charAt(j) : v.substring(j, j + 2);
+          if (w !== correctWord && (isSingle || isCommonWord(w))) {
             words.add(w);
           }
         }
@@ -201,9 +216,10 @@ const DataManager = (function () {
         if (i._index === item._index) return;
         if (i.difficulty < item.difficulty - 1 || i.difficulty > item.difficulty + 1) return;
         i.content.forEach(function(v) {
-          for (var j = 0; j <= v.length - 2; j++) {
-            var w = v.substring(j, j + 2);
-            if (w !== correctWord && isCommonWord(w)) {
+          var maxJ = isSingle ? v.length - 1 : v.length - 2;
+          for (var j = 0; j <= maxJ; j++) {
+            var w = isSingle ? v.charAt(j) : v.substring(j, j + 2);
+            if (w !== correctWord && (isSingle || isCommonWord(w))) {
               words.add(w);
             }
           }
@@ -215,7 +231,7 @@ const DataManager = (function () {
   }
 
   function isCommonWord(w) {
-    var common = ["风雨","明月","花落","春眠","处处","啼鸟","夜来","声雨","知多","锄禾","日当","汗滴","谁知","盘中","粒粒","辛苦","白日","黄河","欲穷","千里","更上","一层","千山","万径","孤舟","独钓","寒江","鹅鹅","曲项","向天","白毛","绿水","红掌","清波","危楼","高百","手可","摘星","不敢","高声","天上","日照","香炉","紫烟","遥看","瀑布","飞流","直下","三千","疑是","银河","落九","朝辞","白帝","彩云","千里","江陵","两岸","猿声","啼不","轻舟","已过","万重","远上","寒山","石径","白云","人家","停车","坐爱","枫林","霜叶","二月","慈母","手中","游子","身上","临行","密密","意恐","迟迟","谁言","寸草","报得","春晖","好雨","知时","当春","随风","潜入","润物","野径","云俱","江船","火独","晓看","红湿","花重","两个","黄鹂","翠柳","一行","白鹭","青天","窗含","西岭","千秋","门泊","东吴","万里","月落","乌啼","霜满","江枫","渔火","对愁","姑苏","城外","寒山","夜半","钟声","客船","横看","成岭","侧成","远近","高低","不识","庐山","真面","只缘","在此","水光","潋滟","晴方","山色","空蒙","雨亦","欲把","西湖","西子","淡妆","浓抹","相宜","死去","元知","万事","但悲","不见","九州","王师","北定","中原","家祭","无忘","乃翁","泉眼","无声","惜细","树阴","照水","爱晴","小荷","才露","尖尖","早有","蜻蜓","立上","胜日","寻芳","泗水","滨无","光景","一时","等闲","识得","东风","万紫","千红","总是"];
+    var common = ["风雨","明月","花落","春眠","处处","啼鸟","夜来","声雨","知多","锄禾","日当","汗滴","谁知","盘中","粒粒","辛苦","白日","黄河","欲穷","千里","更上","一层","千山","万径","孤舟","独钓","寒江","鹅鹅","曲项","向天","白毛","绿水","红掌","清波","危楼","高百","手可","摘星","不敢","高声","天上","日照","香炉","紫烟","遥看","瀑布","飞流","直下","三千","疑是","银河","落九","朝辞","白帝","彩云","千里","江陵","两岸","猿声","啼不","轻舟","已过","万重","远上","寒山","石径","白云","人家","停车","坐爱","枫林","霜叶","二月","慈母","手中","游子","身上","临行","密密","意恐","迟迟","谁言","寸草","报得","春晖","好雨","知时","当春","随风","潜入","润物","野径","云俱","江船","火独","晓看","红湿","花重","两个","黄鹂","翠柳","一行","白鹭","青天","窗含","西岭","千秋","门泊","东吴","万里","月落","乌啼","霜满","江枫","渔火","对愁","姑苏","城外","寒山","夜半","钟声","客船","横看","成岭","侧成","远近","高低","不识","庐山","真面","只缘","在此","水光","潋滟","晴方","山色","空蒙","雨亦","欲把","西湖","西子","淡妆","浓抹","相宜","死去","元知","万事","但悲","不见","九州","王师","北定","中原","家祭","无忘","乃翁","泉眼","无声","惜细","树阴","照水","爱晴","小荷","才露","尖尖","早有","蜻蜓","立上","胜日","寻芳","泗水","滨无","光景","一时","等闲","识得","东风","万紫","千红","总是","青山","春风","秋风","江南","江湖","天涯","海角","相思","离别","故人","流水","落花","清风","夕阳","黄昏","烟雨","远山","孤帆","扁舟","渔翁","牧童","童子","老翁","白发","红颜","佳人","君子","伊人","落日","残月","疏影","暗香","寒梅","翠竹","苍松","飞鸟","游鱼","轻烟","薄雾","长亭","古道","西风","瘦马","断肠","离愁","乡愁","归途","远客","行人","征人","空山","幽谷","深林","清溪","碧水","澄江","平野","大漠","孤烟","长河"];
     return common.indexOf(w) >= 0;
   }
   function pickWrongPoemVerses(currentItem, allData, count) {
