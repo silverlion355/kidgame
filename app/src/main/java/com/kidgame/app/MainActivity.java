@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean ttsInitAttempted = false; // 防止重复初始化尝试
     private boolean ttsInitInProgress = false; // 防止安全超时触发重复initTTSWithEngine
     private List<String[]> pendingSpeaks = new ArrayList<>(); // 未就绪时排队，就绪后补播
+    private boolean englishTtsWarned = false; // 英文语音包缺失提示去重
 
     // Helper: send log to JS GameStorage so user can see in app debug log
     private void jsLog(String level, String tag, String msg) {
@@ -82,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Add JavaScript interface for TTS
         webView.addJavascriptInterface(new TTSEngine(), "AndroidTTS");
+        webView.addJavascriptInterface(new AppBridge(), "AndroidBridge");
 
         // === System info logging (after WebView is ready) ===
         logSystemInfo();
@@ -454,14 +456,31 @@ public class MainActivity extends AppCompatActivity {
     // 真正执行发音：内部类 TTSEngine 与补播逻辑 flushPendingSpeaks 共用
     private void speakText(String text, String lang) {
         try {
-            Locale locale = (lang != null && lang.toLowerCase().startsWith("en"))
-                    ? Locale.US : Locale.SIMPLIFIED_CHINESE;
-            int avail = tts.isLanguageAvailable(locale);
-            if (avail >= TextToSpeech.LANG_AVAILABLE) {
-                tts.setLanguage(locale);
+            Locale locale;
+            if (lang != null && lang.toLowerCase().startsWith("en")) {
+                locale = Locale.US;
+                int avail = tts.isLanguageAvailable(locale);
+                if (avail < TextToSpeech.LANG_AVAILABLE) {
+                    // 英文语音包可能未安装，尝试其他英文 locale
+                    locale = Locale.ENGLISH;
+                    if (tts.isLanguageAvailable(locale) < TextToSpeech.LANG_AVAILABLE) {
+                        // 仍不可用：用当前可用语言先发声，避免静音，并提示安装英文包
+                        locale = Locale.getDefault();
+                        if (!englishTtsWarned) {
+                            englishTtsWarned = true;
+                            Toast.makeText(MainActivity.this,
+                                    "英文发音需安装英文语音包：设置→语言与输入法→文字转语音(TTS)→安装语音数据→英语",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }
             } else {
-                tts.setLanguage(Locale.getDefault());
+                locale = Locale.SIMPLIFIED_CHINESE;
+                if (tts.isLanguageAvailable(locale) < TextToSpeech.LANG_AVAILABLE) {
+                    locale = Locale.getDefault();
+                }
             }
+            tts.setLanguage(locale);
             tts.setSpeechRate(1.0f);
             tts.setPitch(1.0f);
             HashMap<String, String> params = new HashMap<>();
@@ -522,8 +541,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
+        // 交给 JS 逐级返回（屏幕栈）；仅在首页时 JS 调用 AndroidBridge.finish()
+        if (webView != null) {
+            webView.evaluateJavascript("if(window.onNativeBack) window.onNativeBack();", null);
         } else {
             super.onBackPressed();
         }
@@ -536,5 +556,13 @@ public class MainActivity extends AppCompatActivity {
             tts.shutdown();
         }
         super.onDestroy();
+    }
+
+    // 供 JS 在首页时真正退出应用（原生返回手势逐级返回到首页后调用）
+    private class AppBridge {
+        @JavascriptInterface
+        public void finish() {
+            MainActivity.this.finish();
+        }
     }
 }
