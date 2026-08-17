@@ -36,26 +36,19 @@ window.onAndroidTTSReady = function() {
   }
 };
 
-// 处理原生返回键/手势
+// 处理原生返回键/手势：逐级返回上一级，首页才退出应用
 window.onNativeBack = function() {
   console.log('[onNativeBack] called');
   GameStorage.addLog('info', 'Native back pressed');
-  // 尝试调用App的返回逻辑
-  if (typeof App !== 'undefined' && App.showScreen) {
-    // 获取当前屏幕，尝试返回
-    var current = document.querySelector('.screen.active');
-    if (current && current.id !== 'home-screen') {
-      App.showScreen('home-screen');
-    } else {
-      // 已在首页，尝试关闭应用
-      try {
-        if (window.AndroidBridge && window.AndroidBridge.finish) {
-          window.AndroidBridge.finish();
-        }
-      } catch(e) {
-        console.log('Cannot finish app:', e);
+  try {
+    App.goBack();
+  } catch(e) {
+    console.log('[onNativeBack] fallback to finish:', e);
+    try {
+      if (window.AndroidBridge && window.AndroidBridge.finish) {
+        window.AndroidBridge.finish();
       }
-    }
+    } catch(e2) {}
   }
 };
 
@@ -299,12 +292,44 @@ function checkAndroidTTS() {
     updateHomeUI();
   }
 
-  // ===== screen switch =====
-  function showScreen(id) {
+  // ===== screen switch (with back-stack) =====
+  // screenStack 记录前进历史（不含当前屏与首页根），用于手势/返回键逐级回退
+  var screenStack = [];
+  var currentScreenId = 'home-screen';
+
+  function showScreen(id, isBack) {
+    // 前进导航时，把当前屏压入历史栈（首页是根，不进栈中部；回到首页清空栈）
+    if (currentScreenId && currentScreenId !== id && !isBack) {
+      screenStack.push(currentScreenId);
+    }
+    if (id === 'home-screen') {
+      screenStack = [];
+    }
+    currentScreenId = id;
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     document.getElementById(id).classList.add('active');
     if (id !== 'quiz-screen' && id !== 'home-screen') {
       stopBgMusic();
+    }
+  }
+
+  // 返回上一级：有历史则回退，无历史（已在首页）则退出应用
+  function goBack() {
+    if (screenStack.length > 0) {
+      var prev = screenStack.pop();
+      console.log('[goBack] pop -> ' + prev + ' (stack len ' + screenStack.length + ')');
+      showScreen(prev, true);
+      // 某些子页返回后需要刷新首页状态
+      if (prev === 'home-screen') updateHomeUI();
+    } else {
+      console.log('[goBack] at root, finish app');
+      try {
+        if (window.AndroidBridge && window.AndroidBridge.finish) {
+          window.AndroidBridge.finish();
+        }
+      } catch(e) {
+        console.log('[goBack] finish failed', e);
+      }
     }
   }
 
@@ -922,13 +947,8 @@ function checkAndroidTTS() {
     try {
       // 清除倒计时
       try { clearCountdown(); } catch(e) {}
-      // 强制返回首页
-      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
-      var home = document.getElementById('home-screen');
-      if (home) {
-        home.classList.add('active');
-        console.log('[confirmQuit] home-screen activated');
-      }
+      // 强制返回首页（走统一切换，保持返回栈同步）
+      showScreen('home-screen');
       updateHomeUI();
       // 重置游戏状态
       currentQuestions = [];
@@ -1445,6 +1465,7 @@ function checkAndroidTTS() {
   return {
     init: init,
     showScreen: showScreen,
+    goBack: goBack,
     goToLevels: goToLevels,
     startLevel: startLevel,
     retryLevel: retryLevel,
