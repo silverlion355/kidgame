@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean ttsInitInProgress = false; // 防止安全超时触发重复initTTSWithEngine
     private List<String[]> pendingSpeaks = new ArrayList<>(); // 未就绪时排队，就绪后补播
     private boolean englishTtsWarned = false; // 英文语音包缺失提示去重
+    private boolean chineseTtsWarned = false; // 中文语音包缺失提示去重
 
     // Helper: send log to JS GameStorage so user can see in app debug log
     private void jsLog(String level, String tag, String msg) {
@@ -478,6 +479,12 @@ public class MainActivity extends AppCompatActivity {
                 locale = Locale.SIMPLIFIED_CHINESE;
                 if (tts.isLanguageAvailable(locale) < TextToSpeech.LANG_AVAILABLE) {
                     locale = Locale.getDefault();
+                    if (!chineseTtsWarned) {
+                        chineseTtsWarned = true;
+                        Toast.makeText(MainActivity.this,
+                                "中文发音需安装中文语音包：设置→文字转语音(TTS)→安装语音数据→中文",
+                                Toast.LENGTH_LONG).show();
+                    }
                 }
             }
             tts.setLanguage(locale);
