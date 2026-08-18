@@ -34,6 +34,7 @@ const GameStorage = (function () {
       idiom: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       poem: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       english: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
+      hanzi: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       speed: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       pattern: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       points24: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
@@ -67,7 +68,7 @@ const GameStorage = (function () {
   // ========== 错题本 ==========
 
   function getWrongBook() {
-    return get('wrongBook') || { idiom: [], poem: [], english: [] };
+    return get('wrongBook') || { idiom: [], poem: [], english: [], hanzi: [] };
   }
 
   function addWrong(subject, itemId) {
