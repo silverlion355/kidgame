@@ -6,6 +6,11 @@
   <title>萌娃闯关 - 成语·古诗·英语</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="manifest" href="manifest.json">
+  <style>
+    .hanzi-char { font-size: 88px; line-height: 1.1; text-align: center; font-weight: 700; color: #2c3e50; margin: 8px 0 2px; }
+    .hanzi-prompt { text-align: center; font-size: 17px; color: #555; margin-bottom: 12px; }
+  </style>
+
 </head>
 <body>
   <div class="container">
@@ -23,7 +28,7 @@
 
       <div class="home-title bounce-in">
         <h1>🎮 萌娃闯关</h1>
-        <p>成语 · 古诗 · 英语</p>
+        <p>成语 · 古诗 · 英语 · 汉字</p>
       </div>
 
       <div class="subject-card fade-in" style="animation-delay: 0.1s" onclick="App.goToLevels('idiom')">
@@ -60,6 +65,19 @@
           <div class="subject-progress">
             <span class="stars-tiny" id="english-stars">☆☆☆</span>
             <span id="english-level">第1关</span>
+          </div>
+        </div>
+        <div>›</div>
+      </div>
+
+      <div class="subject-card fade-in" style="animation-delay: 0.33s" onclick="App.goToLevels('hanzi')">
+        <div class="subject-icon" style="background:#FFF8E1;font-size:30px;font-weight:700;color:#E6A23C;">字</div>
+        <div class="subject-info">
+          <h3>汉字乐园</h3>
+          <p>识字形 · 辨拼音 · 懂字义</p>
+          <div class="subject-progress">
+            <span class="stars-tiny" id="hanzi-stars">☆☆☆</span>
+            <span id="hanzi-level">第1关</span>
           </div>
         </div>
         <div>›</div>
