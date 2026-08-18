@@ -124,6 +124,8 @@ function checkAndroidTTS() {
   var TOTAL_QUESTIONS = 5;
   var MAX_HEARTS = 3;
 
+  var currentTotalQuestions = 5;
+
   // ===== Audio Manager (Web Audio API) =====
   var audioCtx = null;
   
@@ -276,7 +278,7 @@ function checkAndroidTTS() {
     updateGiftsDisplay();
     updateMultiplierDisplay();
 
-    ['idiom', 'poem', 'english'].forEach(function(sub) {
+    ['idiom', 'poem', 'english', 'hanzi'].forEach(function(sub) {
       var stars = calcTotalStars(p[sub].stars);
       var starStr = renderStars(stars, p[sub].highestLevel * 5);
       document.getElementById(sub + '-stars').textContent = starStr;
@@ -396,7 +398,7 @@ function checkAndroidTTS() {
   // ===== level selection =====
   function goToLevels(subject) {
     currentSubject = subject;
-    var names = { idiom: '成语乐园', poem: '古诗天地', english: '英语世界' };
+    var names = { idiom: '成语乐园', poem: '古诗天地', english: '英语世界', hanzi: '汉字乐园' };
     var totalLevels = DataManager.getTotalLevels(subject);
     document.getElementById('levels-title').textContent = (names[subject] || '选择关卡') + '（共' + totalLevels + '关）';
     renderLevelGrid();
@@ -450,7 +452,8 @@ function checkAndroidTTS() {
       getSubjectName(currentSubject) + ' · 第' + level + '关';
     updateHearts();
     updateQuizHints();
-    currentQuestions = DataManager.generateQuestions(currentSubject, level, TOTAL_QUESTIONS);
+    currentTotalQuestions = (currentSubject === 'hanzi') ? 10 : 5;
+    currentQuestions = DataManager.generateQuestions(currentSubject, level, currentTotalQuestions);
     if (!currentQuestions.length) {
       alert('题库数据加载中，请稍后再试');
       showScreen('home-screen');
@@ -463,7 +466,7 @@ function checkAndroidTTS() {
   }
 
   function getSubjectName(sub) {
-    return { idiom: '成语乐园', poem: '古诗天地', english: '英语世界' }[sub] || '';
+    return { idiom: '成语乐园', poem: '古诗天地', english: '英语世界', hanzi: '汉字乐园' }[sub] || '';
   }
 
   // ===== show question =====
@@ -536,7 +539,7 @@ function checkAndroidTTS() {
       console.log('[showQuestion] speaker button displayed');
     }
 
-    var progress = (currentQIndex / TOTAL_QUESTIONS) * 100;
+    var progress = (currentQIndex / currentTotalQuestions) * 100;
     document.getElementById('quiz-progress').style.width = progress + '%';
     var optionsC = document.getElementById('options-container');
     optionsC.style.display = 'flex';
@@ -617,6 +620,12 @@ function checkAndroidTTS() {
       if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
       lang = 'en';
       if (!text) text = q.q || q.answer;
+    }
+    if (currentSubject === 'hanzi') {
+      var hItem = DataManager.getDataBySubject('hanzi').find(function(d) { return d.id === q.hanziId; });
+      if (hItem) text = hItem.word;
+      lang = 'zh-CN';
+      if (!text) text = q.char || q.q;
     }
     if (!text) text = q.q;
 
@@ -833,7 +842,7 @@ function checkAndroidTTS() {
       updateScoreUI();
       updateStreakUI();
       playStreakSound(); // 连击音效
-      var itemId = question.idiomId || question.poemId || question.englishId;
+      var itemId = question.idiomId || question.poemId || question.englishId || question.hanziId;
       if (itemId) GameStorage.removeWrong(currentSubject, itemId);
       playCorrectSound();
       setTimeout(nextQuestion, 600);
@@ -845,7 +854,7 @@ function checkAndroidTTS() {
       streak = 0;
       updateStreakUI();
       updateHearts();
-      var itemId2 = question.idiomId || question.poemId || question.englishId;
+      var itemId2 = question.idiomId || question.poemId || question.englishId || question.hanziId;
       if (itemId2) GameStorage.addWrong(currentSubject, itemId2);
       playWrongSound();
       if (hearts <= 0) {
@@ -860,7 +869,7 @@ function checkAndroidTTS() {
     // 清除倒计时
     clearCountdown();
     currentQIndex++;
-    if (currentQIndex >= TOTAL_QUESTIONS || currentQIndex >= currentQuestions.length) {
+    if (currentQIndex >= currentTotalQuestions || currentQIndex >= currentQuestions.length) {
       finishLevel();
     } else {
       showQuestion();
@@ -908,7 +917,7 @@ function checkAndroidTTS() {
     // 清除倒计时
     clearCountdown();
     var elapsed = (Date.now() - startTime) / 1000;
-    var pct = correctCount / TOTAL_QUESTIONS;
+    var pct = correctCount / currentTotalQuestions;
     var stars = 1;
     if (pct >= 1 && elapsed < 60) stars = 3;
     else if (pct >= 0.8) stars = 2;
@@ -1066,9 +1075,9 @@ function checkAndroidTTS() {
     var wb = GameStorage.getWrongBook();
     var container = document.getElementById('wrongbook-content');
     container.innerHTML = '';
-    var subjectNames = { idiom: '成语', poem: '古诗', english: '英语' };
+    var subjectNames = { idiom: '成语', poem: '古诗', english: '英语', hanzi: '汉字' };
     var hasAny = false;
-    ['idiom', 'poem', 'english'].forEach(function(sub) {
+    ['idiom', 'poem', 'english', 'hanzi'].forEach(function(sub) {
       if (wb[sub].length === 0) return;
       hasAny = true;
       var title = document.createElement('h3');
@@ -1085,6 +1094,7 @@ function checkAndroidTTS() {
         if (sub === 'idiom') info = item.word + ' — ' + item.meaning;
         else if (sub === 'poem') info = item.title + '（' + item.author + '）';
         else if (sub === 'english') info = item.word + ' — ' + item.meaning_cn;
+        else if (sub === 'hanzi') info = item.word + ' — ' + item.meaning;
         div.innerHTML = '<div class="info"><h4>' + subjectNames[sub] + '</h4><p>' + info + '</p></div>' +
           '<button class="remove-btn" onclick="App.removeWrong(\'' + sub + '\',\'' + id + '\',this)">✕</button>';
         container.appendChild(div);
