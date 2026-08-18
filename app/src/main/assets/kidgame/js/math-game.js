@@ -539,16 +539,18 @@ const MathGame = (function() {
         // 在游戏中，确认退出
         this.confirmExit();
       } else {
-        // 返回主菜单或隐藏（不再设 display:none，交给 App.showScreen 统一管理，避免再进白屏）
-        screen.className = 'screen';
         if (currentGame === null) {
-          // 从主菜单返回，直接回到首页
+          // 从数学主菜单返回，直接回到首页（隐藏 math-screen，交给 App.showScreen 统一管理）
+          screen.className = 'screen';
           if (typeof App !== 'undefined' && App.showScreen) {
             App.showScreen('home-screen');
           }
         } else {
-          // 从游戏子菜单返回，显示主菜单
+          // 从子关卡选择返回，显示数学主菜单。
+          // 关键：保持 math-screen 处于激活态（'screen active'），否则菜单会被渲染进一个被隐藏的屏幕 → 白屏。
           currentGame = null;
+          screen.className = 'screen active';
+          screen.style.display = '';
           screen.innerHTML = renderMathMenu();
         }
       }
