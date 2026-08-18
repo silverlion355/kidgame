@@ -2,6 +2,39 @@
  * app.js - main logic and game interaction
  */
 
+// ===== 全局异常兜底（A4）：任何 JS 报错不再静默白屏，记录日志并提示用户 =====
+(function installGlobalErrorGuard() {
+  function ensureBanner(msg) {
+    try {
+      var box = document.getElementById('error-banner');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'error-banner';
+        box.setAttribute('style',
+          'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#c0392b;color:#fff;' +
+          'font-size:13px;line-height:1.4;padding:8px 12px;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.3);');
+        if (document.body) document.body.appendChild(box);
+      }
+      if (box) box.textContent = '⚠️ 程序出现小问题（' + msg + '）。如页面异常，请返回首页或重启应用。';
+    } catch (_) {}
+  }
+  window.addEventListener('error', function (e) {
+    try {
+      var msg = (e && e.message) ? e.message : '未知错误';
+      var stack = (e && e.error && e.error.stack) ? e.error.stack.substring(0, 200) : '';
+      if (window.GameStorage) GameStorage.addLog('error', '[window.onerror] ' + msg + ' ' + stack);
+      ensureBanner(msg.substring(0, 40));
+    } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    try {
+      var msg = (e && e.reason) ? (e.reason.message || String(e.reason)) : 'Promise 错误';
+      if (window.GameStorage) GameStorage.addLog('error', '[unhandledrejection] ' + msg);
+      ensureBanner(msg.substring(0, 40));
+    } catch (_) {}
+  });
+})();
+
 const App = (function () {
   var currentSubject = null;
   var currentLevel = 1;
@@ -277,13 +310,40 @@ function checkAndroidTTS() {
     return s;
   }
 
+  // ===== 轻量吐司提示（无模态，自动消失） =====
+  function showToast(text) {
+    try {
+      var t = document.createElement('div');
+      t.textContent = text;
+      t.setAttribute('style',
+        'position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:99998;' +
+        'background:rgba(0,0,0,.82);color:#fff;font-size:14px;padding:10px 16px;border-radius:10px;' +
+        'max-width:80%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.3);');
+      if (document.body) document.body.appendChild(t);
+      setTimeout(function() { if (t && t.parentNode) t.parentNode.removeChild(t); }, 2600);
+    } catch (_) {}
+  }
+
   // ===== daily reward =====
   function checkReward() {
-    var r = GameStorage.checkDailyReward();
-    if (r.claimed) {
-      document.getElementById('reward-text').textContent =
-        '获得 ' + r.coins + ' 金币（连续登录 ' + r.streak + ' 天）';
-      document.getElementById('reward-popup').classList.add('active');
+    try {
+      var r = GameStorage.checkDailyReward();
+      if (r.claimed) {
+        var rt = document.getElementById('reward-text');
+        var rp = document.getElementById('reward-popup');
+        if (rt) {
+          rt.textContent = '🎁 每日登录奖励：+' + r.coins + ' 金币（连续登录 ' + r.streak + ' 天）';
+        }
+        if (rp) {
+          rp.classList.add('active');
+        } else {
+          // 弹窗元素缺失时，用吐司兜底，确保用户知道金币来源
+          showToast('🎁 每日登录奖励 +' + r.coins + ' 金币（连续登录 ' + r.streak + ' 天）');
+        }
+      }
+    } catch (e) {
+      console.error('[checkReward] error:', e);
+      if (window.GameStorage) GameStorage.addLog('error', '[checkReward] ' + e.message);
     }
   }
 
@@ -858,9 +918,18 @@ function checkAndroidTTS() {
     // 计算礼物倍数：每个小礼物增加0.1倍，最高2倍
     var multiplier = getScoreMultiplier();
     var coins = Math.round(baseCoins * multiplier);
-    GameStorage.addCoins(coins);
+    // 仅在首次通关或星级提升时发放金币，避免重玩已过关卡反复刷币
+    var prevStars = 0;
+    var prog = GameStorage.getProgress();
+    if (prog[currentSubject] && prog[currentSubject].stars[currentLevel]) {
+      prevStars = prog[currentSubject].stars[currentLevel];
+    }
+    var awardCoins = (stars > prevStars) ? coins : 0;
+    if (awardCoins > 0) {
+      GameStorage.addCoins(awardCoins);
+    }
     GameStorage.saveLevelStars(currentSubject, currentLevel, stars);
-    showResult(stars, coins, multiplier, true);
+    showResult(stars, awardCoins, multiplier, true);
   }
 
   function failLevel() {
@@ -894,7 +963,11 @@ function checkAndroidTTS() {
       if (multiplier > 1) {
         multText = ' (×' + multiplier.toFixed(1) + ')';
       }
-      msg.textContent = '获得 ' + coins + ' 金币！' + multText + '继续加油！';
+      if (coins > 0) {
+        msg.textContent = '获得 ' + coins + ' 金币！' + multText + '继续加油！';
+      } else {
+        msg.textContent = '已通关此关，金币不变～挑战更高星级可再得奖励！';
+      }
       if (nextBtn) nextBtn.style.display = '';
       if (homeBtn) homeBtn.style.display = '';
       createConfetti();
