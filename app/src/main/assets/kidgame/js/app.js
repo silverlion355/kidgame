@@ -76,12 +76,9 @@ window.onNativeBack = function() {
   try {
     App.goBack();
   } catch(e) {
-    console.log('[onNativeBack] fallback to finish:', e);
-    try {
-      if (window.AndroidBridge && window.AndroidBridge.finish) {
-        window.AndroidBridge.finish();
-      }
-    } catch(e2) {}
+    // 发生异常时不要直接退出应用，仅记录，避免“返回即闪退”
+    console.error('[onNativeBack] error in goBack:', e);
+    GameStorage.addLog('error', '[onNativeBack] goBack failed: ' + (e && e.message ? e.message : e));
   }
 };
 
@@ -279,10 +276,11 @@ function checkAndroidTTS() {
     updateMultiplierDisplay();
 
     ['idiom', 'poem', 'english', 'hanzi'].forEach(function(sub) {
-      var stars = calcTotalStars(p[sub].stars);
-      var starStr = renderStars(stars, p[sub].highestLevel * 5);
+      var prog = p[sub] || { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+      var stars = calcTotalStars(prog.stars || {});
+      var starStr = renderStars(stars, (prog.highestLevel || 1) * 5);
       document.getElementById(sub + '-stars').textContent = starStr;
-      document.getElementById(sub + '-level').textContent = '第' + p[sub].highestLevel + '关';
+      document.getElementById(sub + '-level').textContent = '第' + (prog.highestLevel || 1) + '关';
     });
   }
 
@@ -407,8 +405,9 @@ function checkAndroidTTS() {
 
   function renderLevelGrid() {
     var p = GameStorage.getProgress();
-    var unlocked = p[currentSubject].unlockedLevel || 1;
-    var stars = p[currentSubject].stars || {};
+    var prog = p[currentSubject] || { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+    var unlocked = prog.unlockedLevel || 1;
+    var stars = prog.stars || {};
     var totalLevels = DataManager.getTotalLevels(currentSubject);
     var grid = document.getElementById('levels-grid');
     grid.innerHTML = '';
