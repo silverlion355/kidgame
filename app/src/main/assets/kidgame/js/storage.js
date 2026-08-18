@@ -29,8 +29,9 @@ const GameStorage = (function () {
 
   // ========== 用户进度 ==========
 
-  function getProgress() {
-    return get('progress') || {
+  // 默认进度结构（所有科目都在此登记，避免老设备旧数据缺字段导致崩溃）
+  function getDefaultProgress() {
+    return {
       idiom: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       poem: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
       english: { unlockedLevel: 1, stars: {}, highestLevel: 1 },
@@ -44,6 +45,29 @@ const GameStorage = (function () {
       lastLoginDate: null,
       streak: 0
     };
+  }
+
+  // 读取进度：将本地存储的旧数据与新默认结构做“字段补齐”合并，
+  // 确保任何新增科目（如 hanzi）都不会因缺失而读取 .stars 崩溃。
+  function getProgress() {
+    var def = getDefaultProgress();
+    var stored = get('progress');
+    if (!stored || typeof stored !== 'object') return def;
+    var SUBJECTS = ['idiom', 'poem', 'english', 'hanzi', 'speed', 'pattern', 'points24', 'multtable'];
+    SUBJECTS.forEach(function(s) {
+      if (!stored[s] || typeof stored[s] !== 'object') {
+        stored[s] = { unlockedLevel: 1, stars: {}, highestLevel: 1 };
+      } else {
+        if (stored[s].unlockedLevel == null) stored[s].unlockedLevel = 1;
+        if (!stored[s].stars || typeof stored[s].stars !== 'object') stored[s].stars = {};
+        if (stored[s].highestLevel == null) stored[s].highestLevel = 1;
+      }
+    });
+    if (stored.coins == null) stored.coins = 100;
+    if (stored.hints == null) stored.hints = 3;
+    if (stored.streak == null) stored.streak = 0;
+    if (stored.lastLoginDate == null) stored.lastLoginDate = null;
+    return stored;
   }
 
   function saveProgress(progress) {
