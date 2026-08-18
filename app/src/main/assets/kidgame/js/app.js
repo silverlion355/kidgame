@@ -74,11 +74,17 @@ window.onNativeBack = function() {
   console.log('[onNativeBack] called');
   GameStorage.addLog('info', 'Native back pressed');
   try {
+    // 数学模块内部用自身视图切换（不进共享屏幕栈）：手势返回交给 MathGame 逐级返回，
+    // 实现「游戏内 → 子关卡选择 → 数学主菜单 → 首页」的逐级返回，而不是直接回首页。
+    if (currentScreenId === 'math-screen' && typeof MathGame !== 'undefined' && MathGame.goBack) {
+      MathGame.goBack();
+      return;
+    }
     App.goBack();
   } catch(e) {
     // 发生异常时不要直接退出应用，仅记录，避免“返回即闪退”
-    console.error('[onNativeBack] error in goBack:', e);
-    GameStorage.addLog('error', '[onNativeBack] goBack failed: ' + (e && e.message ? e.message : e));
+    console.error('[onNativeBack] error:', e);
+    GameStorage.addLog('error', '[onNativeBack] failed: ' + (e && e.message ? e.message : e));
   }
 };
 
@@ -591,56 +597,75 @@ function checkAndroidTTS() {
   }
 
   function speakQuestion() {
-    GameStorage.addLog('info', '[speakQuestion] subject=' + currentSubject + ' Q=' + JSON.stringify(currentQuestions[currentQIndex]));
-    var q = currentQuestions[currentQIndex];
-    if (!q) return;
+    try {
+      GameStorage.addLog('info', '[speakQuestion] subject=' + currentSubject);
+      var q = currentQuestions[currentQIndex];
+      if (!q) { GameStorage.addLog('warn', 'speakQuestion: no current question'); return; }
 
-    // 获取要朗读的文本
-    var text = '';
-    var lang = 'zh-CN';
-    if (currentSubject === 'idiom') {
-      var idiomItem = DataManager.getDataBySubject('idiom').find(function(d) { return d.id === q.idiomId; });
-      if (idiomItem) text = idiomItem.word;
-      lang = 'zh-CN';
-    } else if (currentSubject === 'poem') {
-      var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
-      if (poemItem) {
-        for (var i = 0; i < poemItem.content.length; i++) {
-          if (poemItem.content[i].indexOf(q.answer) !== -1) {
-            text = poemItem.content[i];
-            break;
+      // 获取要朗读的文本
+      var text = '';
+      var lang = 'zh-CN';
+      try {
+        if (currentSubject === 'idiom') {
+          var idiomItem = DataManager.getDataBySubject('idiom').find(function(d) { return d.id === q.idiomId; });
+          if (idiomItem) text = idiomItem.word;
+          lang = 'zh-CN';
+        } else if (currentSubject === 'poem') {
+          var poemItem = DataManager.getDataBySubject('poem').find(function(d) { return d.id === q.poemId; });
+          if (poemItem) {
+            for (var i = 0; i < poemItem.content.length; i++) {
+              if (poemItem.content[i].indexOf(q.answer) !== -1) {
+                text = poemItem.content[i];
+                break;
+              }
+            }
+            if (!text) text = poemItem.content[0];
           }
+          lang = 'zh-CN';
+        } else if (currentSubject === 'english') {
+          var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
+          if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
+          lang = 'en';
+          if (!text) text = q.q || q.answer;
+        } else if (currentSubject === 'hanzi') {
+          var hItem = DataManager.getDataBySubject('hanzi').find(function(d) { return d.id === q.hanziId; });
+          if (hItem) text = hItem.word;
+          lang = 'zh-CN';
+          if (!text) text = q.char || q.q;
         }
-        if (!text) text = poemItem.content[0];
+      } catch(e) { GameStorage.addLog('error', 'speakQuestion build text: ' + e.message); }
+      if (!text) text = q.q || '';
+      GameStorage.addLog('info', '[speakQuestion] text=' + text + ' lang=' + lang);
+
+      // 优先原生 TTS：直接调用 speak，Java 端未就绪会自动排队补播；
+      // 安卓 WebView 的 Web Speech 基本静音，仅作为极端兜底；任何异常都不向用户抛错。
+      if (window.AndroidTTS) {
+        speakWithAndroidTTS(text, lang);
+      } else if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
+        speakWithWebSpeech(text, lang);
+      } else {
+        GameStorage.addLog('warn', 'speakQuestion: no TTS available, silent');
+        showSpeakerUnavailable(text);
       }
-      lang = 'zh-CN';
-    } else if (currentSubject === 'english') {
-      var engItem = DataManager.getDataBySubject('english').find(function(d) { return d.id === q.englishId; });
-      if (engItem) text = engItem.word; // 朗读英文单词，而不是中文释义
-      lang = 'en';
-      if (!text) text = q.q || q.answer;
-    }
-    if (currentSubject === 'hanzi') {
-      var hItem = DataManager.getDataBySubject('hanzi').find(function(d) { return d.id === q.hanziId; });
-      if (hItem) text = hItem.word;
-      lang = 'zh-CN';
-      if (!text) text = q.char || q.q;
-    }
-    if (!text) text = q.q;
 
-    GameStorage.addLog('info', '[speakQuestion] text=' + text + ' lang=' + lang + ' androidTTS=' + checkAndroidTTS());
-
-    // 优先原生 TTS：直接调用 speak，Java 端未就绪会自动排队补播；
-    // 不再回退 Web Speech（安卓 WebView 里基本静音，是无声主因）
-    if (window.AndroidTTS) {
-      speakWithAndroidTTS(text, lang);
-    } else {
-      // 非安卓环境（浏览器/PWA）才用 Web Speech
-      speakWithWebSpeech(text, lang);
+      // 启动倒计时
+      try { startCountdown(); } catch(e) {}
+    } catch(e) {
+      // 兜底：朗读相关任何异常都不要冒泡成“报错”红条，影响答题
+      GameStorage.addLog('error', 'speakQuestion exception: ' + (e && e.message ? e.message : e));
     }
+  }
 
-    // 启动倒计时
-    startCountdown();
+  // 朗读不可用时给温和提示（显示读音文本），而不是报错或弹窗
+  function showSpeakerUnavailable(text) {
+    try {
+      var btn = document.getElementById('speaker-btn');
+      if (!btn) return;
+      var old = btn.textContent;
+      var tip = text ? ('🔊 ' + text) : '🔇 暂不可读';
+      btn.textContent = tip;
+      setTimeout(function() { try { btn.textContent = old; } catch(e) {} }, 1800);
+    } catch(e) {}
   }
 
   var _pendingSpeak = null;
@@ -823,50 +848,62 @@ function checkAndroidTTS() {
   
 
   function selectOption(btn, chosen, correct, question) {
-    var allBtns = document.querySelectorAll('.option-btn');
-    allBtns.forEach(function(b) {
-      b.classList.add('disabled');
-      var span = b.querySelector('span:last-child');
-      if (span && span.textContent === correct) {
-        b.classList.add('correct');
-      }
-    });
+    var delay = 600;
+    // 高亮所有按钮（含正确答案），失败也不影响后续流程
+    try {
+      var allBtns = document.querySelectorAll('.option-btn');
+      allBtns.forEach(function(b) {
+        b.classList.add('disabled');
+        var span = b.querySelector('span:last-child');
+        if (span && span.textContent === correct) {
+          b.classList.add('correct');
+        }
+      });
+    } catch(e) { GameStorage.addLog('error', 'selectOption highlight: ' + e.message); }
+
     if (chosen === correct) {
-      btn.classList.add('correct');
-      correctCount++;
-      // 更新分数和连击
-      score += 10 * (streak + 1); // 连击加成
-      streak++;
-      if (streak > maxStreak) maxStreak = streak;
-      updateScoreUI();
-      updateStreakUI();
-      playStreakSound(); // 连击音效
-      var itemId = question.idiomId || question.poemId || question.englishId || question.hanziId;
-      if (itemId) GameStorage.removeWrong(currentSubject, itemId);
-      playCorrectSound();
-      setTimeout(nextQuestion, 600);
+      try {
+        btn.classList.add('correct');
+        correctCount++;
+        // 更新分数和连击
+        score += 10 * (streak + 1); // 连击加成
+        streak++;
+        if (streak > maxStreak) maxStreak = streak;
+        updateScoreUI();
+        updateStreakUI();
+        playStreakSound(); // 连击音效
+        var itemId = question.idiomId || question.poemId || question.englishId || question.hanziId;
+        if (itemId) GameStorage.removeWrong(currentSubject, itemId);
+        playCorrectSound();
+      } catch(e) { GameStorage.addLog('error', 'selectOption correct effects: ' + e.message); }
     } else {
-      btn.classList.add('wrong');
-      btn.classList.add('shake');
-      hearts--;
-      // 重置连击
-      streak = 0;
-      updateStreakUI();
-      updateHearts();
-      var itemId2 = question.idiomId || question.poemId || question.englishId || question.hanziId;
-      if (itemId2) GameStorage.addWrong(currentSubject, itemId2);
-      playWrongSound();
-      if (hearts <= 0) {
-        setTimeout(function() { failLevel(); }, 800);
-      } else {
-        setTimeout(nextQuestion, 800);
-      }
+      try {
+        btn.classList.add('wrong');
+        btn.classList.add('shake');
+        hearts--;
+        // 重置连击
+        streak = 0;
+        updateStreakUI();
+        updateHearts();
+        var itemId2 = question.idiomId || question.poemId || question.englishId || question.hanziId;
+        if (itemId2) GameStorage.addWrong(currentSubject, itemId2);
+        playWrongSound();
+      } catch(e) { GameStorage.addLog('error', 'selectOption wrong effects: ' + e.message); }
+      if (hearts <= 0) delay = 800;
     }
+    // 关键：无论上面的附加逻辑是否异常，都必须进入下一题，避免“答完一题卡住”
+    try {
+      if (hearts <= 0) {
+        setTimeout(function() { failLevel(); }, delay);
+      } else {
+        setTimeout(nextQuestion, delay);
+      }
+    } catch(e) { GameStorage.addLog('error', 'selectOption schedule: ' + e.message); }
   }
 
   function nextQuestion() {
-    // 清除倒计时
-    clearCountdown();
+    // 清除倒计时（防御性，避免异常阻断进入下一题）
+    try { clearCountdown(); } catch(e) {}
     currentQIndex++;
     if (currentQIndex >= currentTotalQuestions || currentQIndex >= currentQuestions.length) {
       finishLevel();
